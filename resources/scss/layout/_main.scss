@@ -4,7 +4,7 @@
 
 .admin-main {
   margin-top: var(--header-height);
-  margin-left: var(--sidebar-width);
+  margin-inline-start: var(--sidebar-width);
   min-height: calc(100vh - var(--header-height));
   transition: var(--transition-base);
 } 

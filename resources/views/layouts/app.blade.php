@@ -1,27 +1,27 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-bs-theme="light">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-bs-theme="light" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
 <head>
     <!-- Meta Tags -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Modern Bootstrap 5 Admin Template - Clean, responsive dashboard">
     <meta name="keywords" content="bootstrap, admin, dashboard, template, modern, responsive">
-    <meta name="author" content="{{ config('app.name') }}">
+    <meta name="author" content="{{ setting('app_name') }}">
 
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="{{ config('app.name') }} - Admin Dashboard">
+    <meta property="og:title" content="{{ setting('app_name') }} - Admin Dashboard">
     <meta property="og:description" content="Clean and modern admin dashboard template built with Bootstrap 5">
     <meta property="og:type" content="website">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="{{ asset('dashboard/assets/icons/favicon.svg') }}">
-    <link rel="icon" type="image/png" href="{{ asset('dashboard/assets/icons/favicon.png') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ setting('app_icon') ? asset('storage/' . setting('app_icon')) : asset('dashboard/assets/icons/favicon.svg') }}">
+    <link rel="icon" type="image/png" href="{{ setting('app_icon') ? asset('storage/' . setting('app_icon')) : asset('dashboard/assets/icons/favicon.png') }}">
 
     <!-- Title -->
-    <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
+    <title>@yield('title', 'Dashboard') - {{ setting('app_name') }}</title>
 
     <!-- Theme Color -->
     <meta name="theme-color" content="#6366f1">
@@ -37,6 +37,9 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
 
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <!-- Stylesheets -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -44,7 +47,7 @@
     @stack('styles')
 </head>
 
-<body data-page="{{ $page ?? 'dashboard' }}" class="admin-layout">
+<body data-page="{{ $page ?? 'dashboard' }}" class="admin-layout {{ app()->getLocale() === 'ar' ? 'ar' : 'en' }}" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
     <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
         <div class="loading-spinner">

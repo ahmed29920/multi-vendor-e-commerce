@@ -14,7 +14,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, HasRoles, SoftDeletes;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -72,9 +72,29 @@ class User extends Authenticatable
     protected static function booted()
     {
         static::creating(function ($user) {
-            if (!$user->email && !$user->phone) {
+            if (! $user->email && ! $user->phone) {
                 throw new \Exception(__('You must enter at least one email or phone'));
             }
         });
+    }
+
+    public function ownedVendor()
+    {
+        return $this->hasOne(Vendor::class, 'owner_id');
+    }
+
+    public function vendorUsers()
+    {
+        return $this->belongsToMany(Vendor::class, 'vendor_users');
+    }
+
+    public function vendor()
+    {
+
+        if ($this->ownedVendor) {
+            return $this->ownedVendor;
+        }
+
+        return $this->vendorUsers()->first();
     }
 }

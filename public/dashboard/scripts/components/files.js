@@ -1,22 +1,35 @@
-import Alpine from 'alpinejs';
+// Use global Alpine instance
+const registerFilesComponent = () => {
+  // Wait for Alpine to be available
+  if (!window.Alpine) {
+    console.warn('Alpine.js not available yet, will retry...');
+    return false;
+  }
 
-document.addEventListener('alpine:init', () => {
-  Alpine.data('filesComponent', () => ({
+  if (!window.Alpine.data) {
+    console.error('Alpine.js data method not available');
+    return false;
+  }
+
+  try {
+    // Register the component
+    window.Alpine.data('filesComponent', () => ({
+
     // UI State
     sidebarVisible: false,
     viewMode: 'grid',
     sortBy: 'name',
     selectedFiles: [],
     showUploadZone: false,
-    
+
     // Storage Information
     storageUsed: 45.2,
     storageTotal: 100,
-    
+
     // Current Navigation
     currentFolder: null,
     breadcrumbs: [{ name: 'My Files', path: '/' }],
-    
+
     // Data
     folders: [],
     currentFiles: [],
@@ -27,7 +40,7 @@ document.addEventListener('alpine:init', () => {
     init() {
       this.loadSampleData();
       this.sortFiles();
-      
+
       // Show upload zone if folder is empty
       this.showUploadZone = this.currentFiles.length === 0;
     },
@@ -311,7 +324,7 @@ document.addEventListener('alpine:init', () => {
       const parts = sizeStr.split(' ');
       const value = parseFloat(parts[0]);
       const unit = parts[1];
-      
+
       switch (unit) {
         case 'KB':
           return value * 1024;
@@ -371,7 +384,7 @@ document.addEventListener('alpine:init', () => {
     navigateToBreadcrumb(index) {
       // Properly slice breadcrumbs and navigate
       this.breadcrumbs = this.breadcrumbs.slice(0, index + 1);
-      
+
       if (index === 0) {
         // Back to root - My Files
         this.currentFolder = null;
@@ -380,14 +393,14 @@ document.addEventListener('alpine:init', () => {
       } else {
         // Navigate to specific folder
         const folderName = this.breadcrumbs[index].name;
-        
+
         // Check if it's a quick access item
         const quickAccessItem = this.quickAccess.find(q => q.name === folderName);
         if (quickAccessItem) {
           this.navigateToQuickAccessItem(quickAccessItem);
           return;
         }
-        
+
         // Otherwise it's a regular folder
         const folder = this.folders.find(f => f.name === folderName);
         if (folder) {
@@ -400,7 +413,7 @@ document.addEventListener('alpine:init', () => {
           this.breadcrumbs = [{ name: 'My Files', path: '/' }];
         }
       }
-      
+
       this.selectedFiles = [];
       this.showUploadZone = this.currentFiles.length === 0;
       this.sortFiles();
@@ -417,7 +430,7 @@ document.addEventListener('alpine:init', () => {
         { name: item.name, path: `/${item.type}` }
       ];
       this.currentFolder = null;
-      
+
       switch (item.type) {
         case 'recent':
           this.currentFiles = [...this.recentFiles];
@@ -437,7 +450,7 @@ document.addEventListener('alpine:init', () => {
         default:
           this.currentFiles = [...this.allFiles];
       }
-      
+
       this.selectedFiles = [];
       this.showUploadZone = this.currentFiles.length === 0;
       this.sortFiles();
@@ -494,7 +507,7 @@ document.addEventListener('alpine:init', () => {
         this.showNotification('❌ No files selected', 'warning');
         return;
       }
-      
+
       if (typeof Swal !== 'undefined') {
         Swal.fire({
           title: 'Download Selected Files',
@@ -619,12 +632,12 @@ document.addEventListener('alpine:init', () => {
       if (index > -1) {
         this.currentFiles.splice(index, 1);
       }
-      
+
       const allIndex = this.allFiles.findIndex(f => f.id === file.id);
       if (allIndex > -1) {
         this.allFiles.splice(allIndex, 1);
       }
-      
+
       this.selectedFiles = this.selectedFiles.filter(id => id !== file.id);
     },
 
@@ -633,7 +646,7 @@ document.addEventListener('alpine:init', () => {
         this.showNotification('❌ No files selected', 'warning');
         return;
       }
-      
+
       if (typeof Swal !== 'undefined') {
         Swal.fire({
           title: 'Delete Selected Files',
@@ -782,44 +795,68 @@ document.addEventListener('alpine:init', () => {
         alert(message);
       }
     }
-  }));
+  })); // end filesComponent definition
 
-  // Search component for header
-  Alpine.data('searchComponent', () => ({
-    query: '',
-    results: [],
-    
-    search() {
-      console.log('Searching for:', this.query);
-      // Clear results or populate with search results
-      if (this.query.length > 2) {
-        // Mock search results for demo
-        this.results = [
-          { title: 'Calendar Events', url: '/calendar', type: 'Page' },
-          { title: 'File Manager', url: '/files', type: 'Page' },
-          { title: 'User Settings', url: '/settings', type: 'Page' }
-        ].filter(item => 
-          item.title.toLowerCase().includes(this.query.toLowerCase())
-        );
-      } else {
-        this.results = [];
+    return true; // Registration successful
+  } catch (error) {
+    console.error('Error registering filesComponent:', error);
+    return false;
+  }
+}; // end registerFilesComponent
+
+// Track if component is registered to avoid duplicates
+let componentRegistered = false;
+
+// Register the component - ensure it happens before Alpine processes the DOM
+const initComponent = () => {
+  if (componentRegistered) {
+    return true; // Already registered
+  }
+
+  const registered = registerFilesComponent();
+  if (registered) {
+    componentRegistered = true;
+    console.log('✅ filesComponent registered successfully');
+    return true;
+  }
+
+  return false;
+};
+
+// Try multiple strategies to ensure registration happens at the right time
+
+// Strategy 1: Register immediately if Alpine is available
+if (initComponent()) {
+  // Success!
+} else {
+  // Strategy 2: Listen for alpine:init event (fires before Alpine starts)
+  document.addEventListener('alpine:init', () => {
+    initComponent();
+  });
+
+  // Strategy 3: Poll for Alpine availability (fallback)
+  let attempts = 0;
+  const maxAttempts = 50; // Try for ~1 second (50 * 20ms)
+  const checkAlpine = setInterval(() => {
+    attempts++;
+    if (initComponent() || attempts >= maxAttempts) {
+      clearInterval(checkAlpine);
+      if (attempts >= maxAttempts && !componentRegistered) {
+        console.error('❌ Failed to register filesComponent after multiple attempts');
       }
     }
-  }));
+  }, 20);
 
-  // Theme switch component
-  Alpine.data('themeSwitch', () => ({
-    currentTheme: 'light',
+  // Strategy 4: Also try when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      initComponent();
+    });
+  }
+}
 
-    init() {
-      this.currentTheme = localStorage.getItem('theme') || 'light';
-      document.documentElement.setAttribute('data-bs-theme', this.currentTheme);
-    },
+// Export for manual registration if needed
+export { registerFilesComponent };
 
-    toggle() {
-      this.currentTheme = this.currentTheme === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-bs-theme', this.currentTheme);
-      localStorage.setItem('theme', this.currentTheme);
-    }
-  }));
-});
+// Note: searchComponent and themeSwitch are already registered in main.js
+// These duplicate registrations are removed to avoid conflicts

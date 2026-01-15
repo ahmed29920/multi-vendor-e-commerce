@@ -4,8 +4,8 @@
         <div class="container-fluid">
             <!-- Logo/Brand -->
             <a class="navbar-brand d-flex align-items-center" href="{{ route('dashboard') }}">
-                <img src="{{ asset('dashboard/assets/images/logo.svg') }}" alt="Logo" height="32" class="d-inline-block align-text-top me-2">
-                <h1 class="h4 mb-0 fw-bold text-primary">{{ config('app.name', 'Metis') }}</h1>
+                <img src="{{ setting('app_logo') ? asset('storage/' . setting('app_logo')) : asset('dashboard/assets/images/logo.svg') }}" alt="Logo" height="32" class="d-inline-block align-text-top me-2">
+                <h1 class="h4 mb-0 fw-bold text-primary">{{ setting('app_name') }}</h1>
             </a>
 
             <!-- Search Bar with Alpine.js -->
@@ -41,6 +41,40 @@
 
             <!-- Right Side Icons -->
             <div class="navbar-nav flex-row">
+                <!-- Language Switcher -->
+                <div class="dropdown me-2">
+                    <button class="btn btn-outline-secondary"
+                            type="button"
+                            id="languageDropdown"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                            data-bs-placement="bottom"
+                            title="{{ __('Change Language') }}">
+                        <i class="bi bi-translate"></i>
+                        <span class="d-none d-md-inline ms-1">{{ strtoupper(app()->getLocale()) }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="languageDropdown">
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center {{ app()->getLocale() === 'en' ? 'active' : '' }}"
+                               href="{{ route('locale.switch', 'en') }}">
+                                <span>English</span>
+                                @if(app()->getLocale() === 'en')
+                                    <i class="bi bi-check ms-auto"></i>
+                                @endif
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center {{ app()->getLocale() === 'ar' ? 'active' : '' }}"
+                               href="{{ route('locale.switch', 'ar') }}">
+                                <span>العربية</span>
+                                @if(app()->getLocale() === 'ar')
+                                    <i class="bi bi-check ms-auto"></i>
+                                @endif
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
                 <!-- Theme Toggle with Alpine.js -->
                 <div x-data="themeSwitch">
                     <button class="btn btn-outline-secondary me-2"
@@ -105,19 +139,12 @@
                             type="button"
                             data-bs-toggle="dropdown"
                             aria-expanded="false">
-                        @if(auth()->check() && auth()->user()->avatar)
-                            <img src="{{ asset('storage/' . auth()->user()->avatar) }}"
-                                 alt="User Avatar"
-                                 width="24"
-                                 height="24"
-                                 class="rounded-circle me-2">
-                        @else
-                            <img src="{{ asset('dashboard/assets/images/avatar-placeholder.svg') }}"
-                                 alt="User Avatar"
-                                 width="24"
-                                 height="24"
-                                 class="rounded-circle me-2">
-                        @endif
+
+                        <img src="{{ auth()->user()->image }}"
+                             alt="User Avatar"
+                             width="24"
+                             height="24"
+                             class="rounded-circle me-2">
                         <span class="d-none d-md-inline">
                             {{ auth()->check() ? auth()->user()->name : 'Guest' }}
                         </span>
@@ -126,15 +153,11 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         @if(auth()->check())
                             <li>
-                                <a class="dropdown-item" href="#">
+                                <a class="dropdown-item" href="{{ route('profile') }}">
                                     <i class="bi bi-person me-2"></i>Profile
                                 </a>
                             </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ route('settings') ?? '#' }}">
-                                    <i class="bi bi-gear me-2"></i>Settings
-                                </a>
-                            </li>
+
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form method="POST" action="{{ route('logout') ?? '#' }}">

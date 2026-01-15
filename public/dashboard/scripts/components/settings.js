@@ -1,15 +1,29 @@
-import Alpine from 'alpinejs';
+// Use global Alpine instance
+const registerSettingsComponent = (alpineInstance = null) => {
+  // Use provided instance, or fall back to window.Alpine
+  const alpine = alpineInstance || window.Alpine;
 
-document.addEventListener('alpine:init', () => {
-  Alpine.data('settingsComponent', () => ({
+  if (!alpine) {
+    console.warn('Alpine.js not available yet, will retry...');
+    return false;
+  }
+
+  if (!alpine.data) {
+    console.error('Alpine.js data method not available');
+    return false;
+  }
+
+  try {
+    // Register the component
+    alpine.data('settingsComponent', () => ({
     // UI State
     sidebarVisible: false,
     activeSection: 'general',
-    
+
     // Storage Information
     storageUsed: 47.3,
     storageTotal: 100,
-    
+
     // Settings Data
     settings: {
       // General Settings
@@ -17,13 +31,13 @@ document.addEventListener('alpine:init', () => {
       timezone: 'America/New_York',
       dateFormat: 'MM/DD/YYYY',
       autoSave: true,
-      
+
       // Appearance Settings
       theme: 'light',
       collapsedSidebar: false,
       animations: true,
       highContrast: false,
-      
+
       // Notifications Settings
       notifications: {
         desktop: true,
@@ -31,21 +45,21 @@ document.addEventListener('alpine:init', () => {
         sound: false,
         marketing: false
       },
-      
+
       // Privacy Settings
       privacy: {
         analytics: true,
         performance: true,
         activityHistory: true
       },
-      
+
       // Storage Settings
       storage: {
         autoCleanup: true,
         cacheLimit: '1000'
       }
     },
-    
+
     // Navigation Sections
     sections: [
       {
@@ -77,12 +91,12 @@ document.addEventListener('alpine:init', () => {
 
     init() {
       // Get current theme from document or localStorage
-      const currentTheme = document.documentElement.getAttribute('data-bs-theme') || 
+      const currentTheme = document.documentElement.getAttribute('data-bs-theme') ||
                           localStorage.getItem('theme') || 'light';
-      
+
       // Update settings theme to match current theme
       this.settings.theme = currentTheme;
-      
+
       this.loadSettings();
     },
 
@@ -110,7 +124,7 @@ document.addEventListener('alpine:init', () => {
           console.warn('Failed to load saved settings:', error);
         }
       }
-      
+
       // Don't change the theme here - it should remain as set in init()
     },
 
@@ -118,7 +132,7 @@ document.addEventListener('alpine:init', () => {
       try {
         localStorage.setItem('appSettings', JSON.stringify(this.settings));
         this.showNotification('Settings saved successfully!', 'success');
-        
+
         // Apply theme change immediately and sync with global theme system
         if (this.settings.theme) {
           document.documentElement.setAttribute('data-bs-theme', this.settings.theme);
@@ -158,13 +172,13 @@ document.addEventListener('alpine:init', () => {
             cacheLimit: '1000'
           }
         };
-        
+
         // Clear localStorage
         localStorage.removeItem('appSettings');
-        
+
         // Apply default theme
         document.documentElement.setAttribute('data-bs-theme', 'light');
-        
+
         this.showNotification('Settings reset to defaults', 'success');
       }
     },
@@ -182,7 +196,7 @@ document.addEventListener('alpine:init', () => {
     setTheme(theme) {
       this.settings.theme = theme;
       document.documentElement.setAttribute('data-bs-theme', theme);
-      
+
       // Save immediately for theme changes
       this.saveSettings();
     },
@@ -191,7 +205,7 @@ document.addEventListener('alpine:init', () => {
     clearCache() {
       // Simulate cache clearing
       this.showNotification('Cache cleared successfully', 'success');
-      
+
       // Simulate storage reduction
       this.storageUsed = Math.max(this.storageUsed - 5, 30);
     },
@@ -199,7 +213,7 @@ document.addEventListener('alpine:init', () => {
     optimizeStorage() {
       // Simulate storage optimization
       this.showNotification('Storage optimized successfully', 'success');
-      
+
       // Simulate storage reduction
       this.storageUsed = Math.max(this.storageUsed - 2, 35);
     },
@@ -211,9 +225,9 @@ document.addEventListener('alpine:init', () => {
         exportDate: new Date().toISOString(),
         format: format
       };
-      
+
       let content, mimeType, filename;
-      
+
       switch (format) {
         case 'json':
           content = JSON.stringify(exportData, null, 2);
@@ -237,7 +251,7 @@ document.addEventListener('alpine:init', () => {
           this.showNotification('Unsupported export format', 'error');
           return;
       }
-      
+
       // Create and trigger download
       const blob = new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
@@ -248,14 +262,14 @@ document.addEventListener('alpine:init', () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       this.showNotification(`Data exported as ${format.toUpperCase()}`, 'success');
     },
 
     convertToCSV(data) {
       const rows = [];
       rows.push('Setting,Value');
-      
+
       const flattenObject = (obj, prefix = '') => {
         for (const key in obj) {
           if (typeof obj[key] === 'object' && obj[key] !== null) {
@@ -265,7 +279,7 @@ document.addEventListener('alpine:init', () => {
           }
         }
       };
-      
+
       flattenObject(data.settings);
       return rows.join('\n');
     },
@@ -274,7 +288,7 @@ document.addEventListener('alpine:init', () => {
       const convertObjectToXML = (obj, indent = 0) => {
         let xml = '';
         const indentStr = '  '.repeat(indent);
-        
+
         for (const key in obj) {
           if (typeof obj[key] === 'object' && obj[key] !== null) {
             xml += `${indentStr}<${key}>\n`;
@@ -284,10 +298,10 @@ document.addEventListener('alpine:init', () => {
             xml += `${indentStr}<${key}>${obj[key]}</${key}>\n`;
           }
         }
-        
+
         return xml;
       };
-      
+
       return `<?xml version="1.0" encoding="UTF-8"?>\n<export>\n${convertObjectToXML(data, 1)}</export>`;
     },
 
@@ -308,47 +322,85 @@ document.addEventListener('alpine:init', () => {
     }
   }));
 
-  // Search component for header
-  Alpine.data('searchComponent', () => ({
-    query: '',
-    results: [],
-    
-    search() {
-      console.log('Searching for:', this.query);
-      this.results = [];
+    return true; // Registration successful
+  } catch (error) {
+    console.error('Error registering settingsComponent:', error);
+    return false;
+  }
+}; // end registerSettingsComponent
+
+// Track if component is registered to avoid duplicates
+let componentRegistered = false;
+
+// Register the component - ensure it happens before Alpine processes the DOM
+const initComponent = () => {
+  if (componentRegistered) {
+    return true; // Already registered
+  }
+
+  const registered = registerSettingsComponent();
+  if (registered) {
+    componentRegistered = true;
+    console.log('✅ settingsComponent registered successfully');
+    return true;
+  }
+
+  return false;
+};
+
+// Register the component immediately when module loads
+// This ensures it's available before Alpine.start() is called
+
+// Strategy 1: Try to register immediately if Alpine is available
+if (window.Alpine && window.Alpine.data) {
+  if (registerSettingsComponent(window.Alpine)) {
+    componentRegistered = true;
+    console.log('✅ settingsComponent registered successfully (immediate)');
+  }
+}
+
+// Strategy 2: Register during alpine:init event (fires BEFORE Alpine.start())
+// This is the most reliable way - it fires right before Alpine processes the DOM
+const alpineInitHandler = () => {
+  if (!componentRegistered) {
+    // During alpine:init, window.Alpine is guaranteed to be available
+    if (window.Alpine && window.Alpine.data) {
+      if (registerSettingsComponent(window.Alpine)) {
+        componentRegistered = true;
+        console.log('✅ settingsComponent registered successfully via alpine:init');
+      }
     }
-  }));
+  }
+};
 
-  // Theme switch component
-  Alpine.data('themeSwitch', () => ({
-    currentTheme: 'light',
+// Set up the listener BEFORE Alpine might start
+// Use capture phase to ensure we catch it early
+document.addEventListener('alpine:init', alpineInitHandler, { capture: true });
 
-    init() {
-      this.currentTheme = localStorage.getItem('theme') || 'light';
-      document.documentElement.setAttribute('data-bs-theme', this.currentTheme);
-    },
-
-    toggle() {
-      this.currentTheme = this.currentTheme === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-bs-theme', this.currentTheme);
-      localStorage.setItem('theme', this.currentTheme);
+// Strategy 3: Fallback polling if both above fail (shouldn't happen, but safety net)
+if (!componentRegistered) {
+  let attempts = 0;
+  const maxAttempts = 100; // 2 seconds
+  const checkInterval = setInterval(() => {
+    attempts++;
+    if (window.Alpine && window.Alpine.data && !componentRegistered) {
+      if (registerSettingsComponent(window.Alpine)) {
+        componentRegistered = true;
+        console.log('✅ settingsComponent registered successfully (polling fallback)');
+        clearInterval(checkInterval);
+      }
     }
-  }));
-
-  // Also register search and theme components for this page
-
-  Alpine.data('themeSwitch', () => ({
-    currentTheme: 'light',
-    
-    init() {
-      this.currentTheme = document.documentElement.getAttribute('data-bs-theme') || 
-                         localStorage.getItem('theme') || 'light';
-    },
-    
-    toggle() {
-      this.currentTheme = this.currentTheme === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-bs-theme', this.currentTheme);
-      localStorage.setItem('theme', this.currentTheme);
+    if (componentRegistered || attempts >= maxAttempts) {
+      clearInterval(checkInterval);
+      if (!componentRegistered && attempts >= maxAttempts) {
+        console.error('❌ Failed to register settingsComponent after all attempts');
+      }
     }
-  }));
-});
+  }, 20);
+}
+
+// Export for manual registration if needed
+export { registerSettingsComponent };
+
+// Note: searchComponent and themeSwitch are already registered in main.js
+// These duplicate registrations are removed to avoid conflicts

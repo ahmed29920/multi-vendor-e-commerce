@@ -12,8 +12,13 @@ export default defineConfig({
     css: {
         preprocessorOptions: {
             scss: {
-                // Silence deprecation warnings for now
-                silenceDeprecations: ['import'],
+                // Silence deprecation warnings from Bootstrap and dependencies
+                silenceDeprecations: [
+                    'import',
+                    'if-function',
+                    'global-builtin',
+                    'color-functions'
+                ],
             },
         },
     },

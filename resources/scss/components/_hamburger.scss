@@ -2,7 +2,7 @@
 .hamburger-menu {
     position: fixed;
     top: 0.75rem;
-    left: 216px; 
+    inset-inline-start: 250px;
     z-index: 1050;
     background: none;
     border: none;
@@ -45,7 +45,7 @@
 /* Responsive positioning for mobile */
 @media (max-width: 991.98px) {
     .hamburger-menu {
-        left: 1rem;
+        inset-inline-start: 1rem;
         top: 0.75rem;
     }
-} 
+}

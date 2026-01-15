@@ -3,155 +3,234 @@
     <div class="sidebar-content">
         <nav class="sidebar-nav">
             <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('analytics*') ? 'active' : '' }}" href="{{ route('analytics') }}">
-                        <i class="bi bi-graph-up"></i>
-                        <span>Analytics</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('users*') ? 'active' : '' }}" href="{{ route('users.index') }}">
-                        <i class="bi bi-people"></i>
-                        <span>Users</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('products*') ? 'active' : '' }}" href="{{ route('products.index') }}">
-                        <i class="bi bi-box"></i>
-                        <span>Products</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('orders*') ? 'active' : '' }}" href="{{ route('orders.index') }}">
-                        <i class="bi bi-bag-check"></i>
-                        <span>Orders</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('forms*') ? 'active' : '' }}" href="{{ route('forms') }}">
-                        <i class="bi bi-ui-checks"></i>
-                        <span>Forms</span>
-                        <span class="badge bg-success rounded-pill ms-auto">New</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('elements*') ? 'active' : '' }}" 
-                       href="#" 
-                       data-bs-toggle="collapse" 
-                       data-bs-target="#elementsSubmenu" 
-                       aria-expanded="{{ request()->routeIs('elements*') ? 'true' : 'false' }}">
-                        <i class="bi bi-puzzle"></i>
-                        <span>Elements</span>
-                        <span class="badge bg-primary rounded-pill ms-2 me-2">New</span>
-                        <i class="bi bi-chevron-down ms-auto"></i>
-                    </a>
-                    <div class="collapse {{ request()->routeIs('elements*') ? 'show' : '' }}" id="elementsSubmenu">
-                        <ul class="nav nav-submenu">
+                @auth
+                    @if(auth()->user()->hasRole('admin'))
+                        <!-- Admin Menu -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}">
+                                <i class="bi bi-speedometer2"></i>
+                                <span>{{ __('Dashboard') }}</span>
+                            </a>
+                        </li>
+
+                        <li class="nav-item mt-3">
+                            <small class="text-muted px-3 text-uppercase fw-bold">{{ __('Management') }}</small>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.categories*') ? 'active' : '' }}" href="{{ route('admin.categories.index') }}">
+                                <i class="bi bi-grid"></i>
+                                <span>{{ __('Categories') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.plans*') ? 'active' : '' }}" href="{{ route('admin.plans.index') }}">
+                                <i class="bi bi-credit-card"></i>
+                                <span>{{ __('Plans') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.vendors*') ? 'active' : '' }}" href="{{ route('admin.vendors.index') }}">
+                                <i class="bi bi-people"></i>
+                                <span>{{ __('Vendors') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.variants*') ? 'active' : '' }}" href="{{ route('admin.variants.index') }}">
+                                <i class="bi bi-tags"></i>
+                                <span>{{ __('Variants') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.products*') ? 'active' : '' }}" href="{{ route('admin.products.index') }}">
+                                <i class="bi bi-box-seam"></i>
+                                <span>{{ __('Products') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.branches*') ? 'active' : '' }}" href="{{ route('admin.branches.index') }}">
+                                <i class="bi bi-shop"></i>
+                                <span>{{ __('Branches') }}</span>
+                            </a>
+                        </li>
+                        {{-- Vendor Subsc --}}
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.subscriptions*') ? 'active' : '' }}" href="{{ route('admin.subscriptions.index') }}">
+                                <i class="bi bi-credit-card"></i>
+                                <span>{{ __('Subscriptions') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.category-requests*') ? 'active' : '' }}" href="{{ route('admin.category-requests.index') }}">
+                                <i class="bi bi-inbox"></i>
+                                <span>{{ __('Category Requests') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.variant-requests*') ? 'active' : '' }}" href="{{ route('admin.variant-requests.index') }}">
+                                <i class="bi bi-inbox"></i>
+                                <span>{{ __('Variant Requests') }}</span>
+                            </a>
+                        </li>
+
+                        <li class="nav-item mt-3">
+                            <small class="text-muted px-3 text-uppercase fw-bold">{{ __('System') }}</small>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" href="{{ route('admin.settings') }}">
+                                <i class="bi bi-gear"></i>
+                                <span>{{ __('Settings') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('security*') ? 'active' : '' }}" href="{{ route('security') }}">
+                                <i class="bi bi-shield-check"></i>
+                                <span>{{ __('Security') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('help*') ? 'active' : '' }}" href="{{ route('help') }}">
+                                <i class="bi bi-question-circle"></i>
+                                <span>{{ __('Help & Support') }}</span>
+                            </a>
+                        </li>
+
+                    @elseif(auth()->user()->hasRole('vendor') || auth()->user()->hasRole('vendor_employee'))
+                        <!-- Vendor Menu -->
+                        @if(vendorCan('view-dashboard'))
                             <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('elements.index') ? 'active' : '' }}" href="{{ route('elements.index') }}">
-                                    <i class="bi bi-grid"></i>
-                                    <span>Overview</span>
+                                <a class="nav-link {{ request()->routeIs('vendor.dashboard') ? 'active' : '' }}" href="{{ route('vendor.dashboard') }}">
+                                    <i class="bi bi-speedometer2"></i>
+                                    <span>{{ __('Dashboard') }}</span>
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('elements.buttons') ? 'active' : '' }}" href="{{ route('elements.buttons') }}">
-                                    <i class="bi bi-square"></i>
-                                    <span>Buttons</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('elements.alerts') ? 'active' : '' }}" href="{{ route('elements.alerts') }}">
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                    <span>Alerts</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('elements.badges') ? 'active' : '' }}" href="{{ route('elements.badges') }}">
-                                    <i class="bi bi-award"></i>
-                                    <span>Badges</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('elements.cards') ? 'active' : '' }}" href="{{ route('elements.cards') }}">
-                                    <i class="bi bi-card-text"></i>
-                                    <span>Cards</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('elements.modals') ? 'active' : '' }}" href="{{ route('elements.modals') }}">
-                                    <i class="bi bi-window"></i>
-                                    <span>Modals</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('elements.forms') ? 'active' : '' }}" href="{{ route('elements.forms') }}">
-                                    <i class="bi bi-ui-checks"></i>
-                                    <span>Forms</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('elements.tables') ? 'active' : '' }}" href="{{ route('elements.tables') }}">
-                                    <i class="bi bi-table"></i>
-                                    <span>Tables</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports*') ? 'active' : '' }}" href="{{ route('reports') }}">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Reports</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('messages*') ? 'active' : '' }}" href="{{ route('messages.index') }}">
-                        <i class="bi bi-chat-dots"></i>
-                        <span>Messages</span>
-                        @if(auth()->check() && method_exists(auth()->user(), 'unreadMessages'))
-                            <span class="badge bg-danger rounded-pill ms-auto">{{ auth()->user()->unreadMessages()->count() }}</span>
                         @endif
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('calendar*') ? 'active' : '' }}" href="{{ route('calendar') }}">
-                        <i class="bi bi-calendar-event"></i>
-                        <span>Calendar</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('files*') ? 'active' : '' }}" href="{{ route('files.index') }}">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Files</span>
-                    </a>
-                </li>
-                <li class="nav-item mt-3">
-                    <small class="text-muted px-3 text-uppercase fw-bold">Admin</small>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('settings*') ? 'active' : '' }}" href="{{ route('settings') }}">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('security*') ? 'active' : '' }}" href="{{ route('security') }}">
-                        <i class="bi bi-shield-check"></i>
-                        <span>Security</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('help*') ? 'active' : '' }}" href="{{ route('help') }}">
-                        <i class="bi bi-question-circle"></i>
-                        <span>Help & Support</span>
-                    </a>
-                </li>
+
+                        @if(vendorCan('view-categories') || vendorCan('view-products') || vendorCan('view-branches'))
+                            <li class="nav-item mt-3">
+                                <small class="text-muted px-3 text-uppercase fw-bold">{{ __('Products') }}</small>
+                            </li>
+                        @endif
+                        @if(vendorCan('view-categories'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('vendor.categories*') ? 'active' : '' }}" href="{{ route('vendor.categories.index') }}">
+                                    <i class="bi bi-grid"></i>
+                                    <span>{{ __('Categories') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        @if(vendorCan('view-variants'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('vendor.variants*') ? 'active' : '' }}" href="{{ route('vendor.variants.index') }}">
+                                    <i class="bi bi-tags"></i>
+                                    <span>{{ __('Variants') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        @if(vendorCan('view-branches') || vendorCan('manage-branches'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('vendor.branches*') ? 'active' : '' }}" href="{{ route('vendor.branches.index') }}">
+                                    <i class="bi bi-shop"></i>
+                                    <span>{{ __('My Branches') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        @if(vendorCan('view-products') || vendorCan('manage-products'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('vendor.products*') ? 'active' : '' }}" href="{{ route('vendor.products.index') }}">
+                                    <i class="bi bi-box-seam"></i>
+                                    <span>{{ __('My Products') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('orders*') ? 'active' : '' }}" href="{{ route('orders.index') }}">
+                                <i class="bi bi-cart-check"></i>
+                                <span>{{ __('Orders') }}</span>
+                            </a>
+                        </li>
+                        @if(setting('profit_type') == 'subscription' && vendorCan('view-plans'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('vendor.plans*') ? 'active' : '' }}" href="{{ route('vendor.plans.index') }}">
+                                    <i class="bi bi-credit-card"></i>
+                                    <span>{{ __('Plans') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        @if(vendorCan('view-subscriptions') || vendorCan('cancel-subscriptions'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('vendor.subscriptions*') ? 'active' : '' }}" href="{{ route('vendor.subscriptions.index') }}">
+                                    <i class="bi bi-credit-card"></i>
+                                    <span>{{ __('Subscriptions') }}</span>
+                                </a>
+                            </li>
+                        @endif
+
+                        @if(vendorCan('view-vendor-users') || vendorCan('manage-vendor-users') || vendorCan('edit-profile') || vendorCan('view-category-requests') || vendorCan('view-variant-requests'))
+                            <li class="nav-item mt-3">
+                                <small class="text-muted px-3 text-uppercase fw-bold">{{ __('Account') }}</small>
+                            </li>
+                        @endif
+                        @if(vendorCan('view-vendor-users') || vendorCan('manage-vendor-users'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('vendor.vendor-users*') ? 'active' : '' }}" href="{{ route('vendor.vendor-users.index') }}">
+                                    <i class="bi bi-people"></i>
+                                    <span>{{ __('Vendor Users') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        @if(vendorCan('edit-profile'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('profile*') ? 'active' : '' }}" href="{{ route('profile') }}">
+                                    <i class="bi bi-person"></i>
+                                    <span>{{ __('Profile') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        @if(vendorCan('view-category-requests') || vendorCan('create-category-requests'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('vendor.category-requests*') ? 'active' : '' }}" href="{{ route('vendor.category-requests.index') }}">
+                                    <i class="bi bi-inbox"></i>
+                                    <span>{{ __('Category Requests') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        @if(vendorCan('view-variant-requests') || vendorCan('create-variant-requests'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('vendor.variant-requests*') ? 'active' : '' }}" href="{{ route('vendor.variant-requests.index') }}">
+                                    <i class="bi bi-inbox"></i>
+                                    <span>{{ __('Variant Requests') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('reports*') ? 'active' : '' }}" href="{{ route('reports') }}">
+                                <i class="bi bi-graph-up"></i>
+                                <span>{{ __('Reports') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('help*') ? 'active' : '' }}" href="{{ route('help') }}">
+                                <i class="bi bi-question-circle"></i>
+                                <span>{{ __('Help & Support') }}</span>
+                            </a>
+                        </li>
+
+                    @else
+                        <!-- Default Menu (for users without specific role) -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
+                                <i class="bi bi-speedometer2"></i>
+                                <span>{{ __('Dashboard') }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('profile*') ? 'active' : '' }}" href="{{ route('profile') }}">
+                                <i class="bi bi-person"></i>
+                                <span>{{ __('Profile') }}</span>
+                            </a>
+                        </li>
+                    @endif
+                @endauth
             </ul>
         </nav>
     </div>

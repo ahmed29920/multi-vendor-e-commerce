@@ -266,8 +266,16 @@ class AdminApp {
 
   async initSettingsPage() {
     try {
-      await import('../../public/dashboard/scripts/components/settings.js');
+      // Import and register the settings component
+      const settingsModule = await import('../../public/dashboard/scripts/components/settings.js');
       console.log('⚙️ Settings page script loaded successfully');
+
+      // Ensure component is registered before Alpine starts
+      // The module should handle registration, but we can also manually trigger it
+      if (settingsModule.registerSettingsComponent && window.Alpine && window.Alpine.data) {
+        settingsModule.registerSettingsComponent(window.Alpine);
+        console.log('✅ settingsComponent manually registered in initSettingsPage');
+      }
     } catch (error) {
       console.error('Failed to load settings page script:', error);
     }
@@ -424,6 +432,9 @@ class AdminApp {
 
   // Initialize Alpine.js
   initAlpine() {
+    // Set window.Alpine BEFORE registering components so they can use it
+    window.Alpine = Alpine;
+
     // Register Alpine data components
     Alpine.data('searchComponent', () => ({
       query: '',
@@ -492,6 +503,125 @@ class AdminApp {
       }
     }));
 
+    // File Upload Form Component
+    Alpine.data('fileUploadForm', () => ({
+      files: [],
+      dragOver: false,
+      fileIdCounter: 0,
+      maxFiles: 1, // Allow only one file for logo/icon
+
+      init() {
+        // Initialize if needed
+      },
+
+      handleDrop(event) {
+        this.dragOver = false;
+        const fileList = event.dataTransfer.files;
+        this.handleFiles(fileList);
+      },
+
+      handleFiles(fileList) {
+        // Clear existing files if only one file is allowed
+        if (this.maxFiles === 1) {
+          this.files = [];
+        }
+
+        // Limit to maxFiles
+        const filesToProcess = Array.from(fileList).slice(0, this.maxFiles);
+
+        for (let i = 0; i < filesToProcess.length; i++) {
+          const file = filesToProcess[i];
+
+          // Check file size (10MB max)
+          if (file.size > 10 * 1024 * 1024) {
+            alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+            continue;
+          }
+
+          const fileId = ++this.fileIdCounter;
+          const fileObj = {
+            id: fileId,
+            name: file.name,
+            size: this.formatFileSize(file.size),
+            file: file, // Store the actual file object
+            progress: 0,
+            status: 'pending',
+            preview: null
+          };
+
+          // Create preview for images
+          if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              fileObj.preview = e.target.result;
+              // Force Alpine reactivity update
+              this.$nextTick(() => {
+                // Image preview is now available
+              });
+            };
+            reader.readAsDataURL(file);
+          }
+
+          this.files.push(fileObj);
+
+          // Update the actual file input element with the selected file
+          // This ensures the file is included when the form is submitted
+          if (this.$refs.fileInput) {
+            // Create a new FileList-like object
+            const dataTransfer = new DataTransfer();
+            this.files.forEach(f => {
+              if (f.file) {
+                dataTransfer.items.add(f.file);
+              }
+            });
+            this.$refs.fileInput.files = dataTransfer.files;
+          }
+
+          // Simulate upload progress
+          this.simulateUpload(fileObj);
+        }
+      },
+
+      formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+      },
+
+      simulateUpload(fileObj) {
+        fileObj.status = 'uploading';
+        const interval = setInterval(() => {
+          fileObj.progress += 10;
+          if (fileObj.progress >= 100) {
+            fileObj.progress = 100;
+            fileObj.status = 'completed';
+            clearInterval(interval);
+          }
+        }, 200);
+      },
+
+      removeFile(fileId) {
+        this.files = this.files.filter(f => f.id !== fileId);
+
+        // Update the actual file input element
+        if (this.$refs.fileInput) {
+          const dataTransfer = new DataTransfer();
+          this.files.forEach(f => {
+            if (f.file) {
+              dataTransfer.items.add(f.file);
+            }
+          });
+          this.$refs.fileInput.files = dataTransfer.files;
+        }
+      },
+
+      getFiles() {
+        return this.files.map(f => f.file);
+      }
+    }));
+
     // Quick Add Form for Dashboard
     Alpine.data('quickAddForm', () => ({
       itemType: 'task',
@@ -555,9 +685,9 @@ class AdminApp {
       }
     }));
 
-    // Start Alpine.js
+    // Start Alpine.js (this will fire alpine:init event)
+    // window.Alpine is already set above, so components can register during alpine:init
     Alpine.start();
-    window.Alpine = Alpine;
   }
 
   // Show demo notifications
