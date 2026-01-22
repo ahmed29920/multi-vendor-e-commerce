@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\VendorResource;
 use App\Services\VendorService;
-use Illuminate\Http\Request;
 
 class VendorController extends Controller
 {
@@ -21,13 +20,18 @@ class VendorController extends Controller
         $perPage = request()->get('per_page', 15);
         $filters = [
             'search' => request()->get('search', ''),
+            'featured' => request()->get('featured', ''),
+            'status' => 'active',
         ];
         $vendors = $this->service->getPaginatedVendors($perPage, $filters);
+
         return VendorResource::collection($vendors);
     }
+
     public function show($id)
     {
         $vendor = $this->service->getVendorById($id);
+
         return new VendorResource($vendor);
     }
 }

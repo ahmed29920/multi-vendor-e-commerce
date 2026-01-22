@@ -5,9 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Vendors\CreateRequest;
 use App\Http\Requests\Admin\Vendors\UpdateRequest;
-use App\Http\Requests\Auth\Vendors\RegisterRequest;
 use App\Models\Plan;
-use App\Models\User;
 use App\Models\Vendor;
 use App\Services\VendorService;
 use Illuminate\Http\JsonResponse;
@@ -34,6 +32,13 @@ class VendorController extends Controller
             'status' => $request->get('status', ''),
             'featured' => $request->get('featured', ''),
             'plan_id' => $request->get('plan_id', ''),
+            'min_balance' => $request->get('min_balance', ''),
+            'max_balance' => $request->get('max_balance', ''),
+            'min_commission_rate' => $request->get('min_commission_rate', ''),
+            'max_commission_rate' => $request->get('max_commission_rate', ''),
+            'from_date' => (string) $request->get('from_date', ''),
+            'to_date' => (string) $request->get('to_date', ''),
+            'sort' => (string) $request->get('sort', ''),
         ];
 
         $vendors = $this->service->getPaginatedVendors(15, $filters);
@@ -78,7 +83,6 @@ class VendorController extends Controller
                 ->with('error', 'Failed to create vendor: '.$e->getMessage());
         }
     }
-
 
     /**
      * Display the specified vendor
@@ -130,7 +134,7 @@ class VendorController extends Controller
             if (request()->wantsJson() || request()->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => __('Vendor deleted successfully.')
+                    'message' => __('Vendor deleted successfully.'),
                 ]);
             }
 
@@ -140,7 +144,7 @@ class VendorController extends Controller
             if (request()->wantsJson() || request()->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => __('Failed to delete vendor: :error', ['error' => $e->getMessage()])
+                    'message' => __('Failed to delete vendor: :error', ['error' => $e->getMessage()]),
                 ], 422);
             }
 

@@ -29,7 +29,7 @@
                 <h1 class="h3 mb-0">{{ __('Variants') }}</h1>
                 <p class="text-muted mb-0">{{ __('Browse available product variants') }}</p>
             </div>
-            @if(setting('profit_type') == 'commission' || (auth()->user()->vendor()->plan_id && setting('profit_type') == 'subscription'))
+            @if(setting('profit_type') == 'commission' || ($currentVendor?->plan_id && setting('profit_type') == 'subscription'))
             <div class="d-flex gap-2">
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#requestVariantModal">
                         <i class="bi bi-plus-lg me-2"></i>{{ __('Request New Variant') }}
@@ -40,7 +40,7 @@
 
         <!-- Variants List -->
         <div class="row g-4">
-            @if(setting('profit_type') == 'commission' || (auth()->user()->vendor()->plan_id && setting('profit_type') == 'subscription'))
+            @if(setting('profit_type') == 'commission' || ($currentVendor?->plan_id && setting('profit_type') == 'subscription'))
                 @forelse($variants as $variant)
                     <div class="col-md-6 col-lg-4">
                         <div class="card h-100">

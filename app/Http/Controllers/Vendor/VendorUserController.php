@@ -7,9 +7,10 @@ use App\Http\Requests\Vendor\VendorUsers\CreateRequest;
 use App\Http\Requests\Vendor\VendorUsers\UpdateRequest;
 use App\Models\Vendor;
 use App\Models\VendorUser;
+use App\Services\BranchService;
 use App\Services\VendorUserService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
@@ -18,9 +19,12 @@ class VendorUserController extends Controller
 {
     protected VendorUserService $vendorUserService;
 
-    public function __construct(VendorUserService $vendorUserService)
+    protected BranchService $branchService;
+
+    public function __construct(VendorUserService $vendorUserService, BranchService $branchService)
     {
         $this->vendorUserService = $vendorUserService;
+        $this->branchService = $branchService;
     }
 
     /**
@@ -29,6 +33,7 @@ class VendorUserController extends Controller
     protected function getVendor(): ?Vendor
     {
         $user = Auth::user();
+
         return Vendor::where('owner_id', $user->id)->first();
     }
 
@@ -39,7 +44,7 @@ class VendorUserController extends Controller
     {
         $vendor = $this->getVendor();
 
-        if (!$vendor) {
+        if (! $vendor) {
             abort(404, __('Vendor account not found.'));
         }
 
@@ -55,7 +60,7 @@ class VendorUserController extends Controller
     {
         $vendor = $this->getVendor();
 
-        if (!$vendor) {
+        if (! $vendor) {
             abort(404, __('Vendor account not found.'));
         }
 
@@ -86,10 +91,14 @@ class VendorUserController extends Controller
                 if (str_starts_with($name, 'cancel-')) {
                     return explode('-', $name)[1] ?? 'other';
                 }
+
                 return 'other';
             });
 
-        return view('vendor.vendor-users.create', compact('vendor', 'permissions'));
+        // Get branches for this vendor
+        $branches = $this->branchService->getBranchesByVendor($vendor->id);
+
+        return view('vendor.vendor-users.create', compact('vendor', 'permissions', 'branches'));
     }
 
     /**
@@ -100,7 +109,7 @@ class VendorUserController extends Controller
         try {
             $vendor = $this->getVendor();
 
-            if (!$vendor) {
+            if (! $vendor) {
                 return redirect()->back()
                     ->with('error', __('Vendor account not found. Please contact administrator.'));
             }
@@ -112,6 +121,8 @@ class VendorUserController extends Controller
                 'password' => $request->password,
                 'is_active' => $request->boolean('is_active', true),
                 'permissions' => $request->input('permissions', []),
+                'user_type' => $request->input('user_type', 'owner'),
+                'branch_id' => $request->input('user_type') === 'branch' ? $request->input('branch_id') : null,
             ];
 
             $this->vendorUserService->createVendorUser($vendor->id, $data);
@@ -132,7 +143,7 @@ class VendorUserController extends Controller
     {
         $vendor = $this->getVendor();
 
-        if (!$vendor) {
+        if (! $vendor) {
             abort(404, __('Vendor account not found.'));
         }
 
@@ -151,8 +162,13 @@ class VendorUserController extends Controller
     {
         $vendor = $this->getVendor();
 
-        if (!$vendor) {
+        if (! $vendor) {
             abort(404, __('Vendor account not found.'));
+        }
+
+        // Ensure vendor user exists
+        if (! $vendorUser) {
+            abort(404, __('Vendor user not found.'));
         }
 
         // Ensure the vendor user belongs to this vendor
@@ -187,12 +203,16 @@ class VendorUserController extends Controller
                 if (str_starts_with($name, 'cancel-')) {
                     return explode('-', $name)[1] ?? 'other';
                 }
+
                 return 'other';
             });
 
         $userPermissions = $vendorUser->user->permissions->pluck('name')->toArray();
 
-        return view('vendor.vendor-users.edit', compact('vendorUser', 'vendor', 'permissions', 'userPermissions'));
+        // Get branches for this vendor
+        $branches = $this->branchService->getBranchesByVendor($vendor->id);
+
+        return view('vendor.vendor-users.edit', compact('vendorUser', 'vendor', 'permissions', 'userPermissions', 'branches'));
     }
 
     /**
@@ -203,7 +223,7 @@ class VendorUserController extends Controller
         try {
             $vendor = $this->getVendor();
 
-            if (!$vendor) {
+            if (! $vendor) {
                 return redirect()->back()
                     ->with('error', __('Vendor account not found. Please contact administrator.'));
             }
@@ -220,6 +240,8 @@ class VendorUserController extends Controller
                 'password' => $request->password,
                 'is_active' => $request->boolean('is_active'),
                 'permissions' => $request->input('permissions', []),
+                'user_type' => $request->input('user_type', 'owner'),
+                'branch_id' => $request->input('user_type') === 'branch' ? $request->input('branch_id') : null,
             ];
 
             $this->vendorUserService->updateVendorUser($vendorUser, $data);
@@ -241,7 +263,7 @@ class VendorUserController extends Controller
         try {
             $vendor = $this->getVendor();
 
-            if (!$vendor) {
+            if (! $vendor) {
                 return redirect()->back()
                     ->with('error', __('Vendor account not found. Please contact administrator.'));
             }
@@ -269,7 +291,7 @@ class VendorUserController extends Controller
         try {
             $vendor = $this->getVendor();
 
-            if (!$vendor) {
+            if (! $vendor) {
                 return response()->json([
                     'success' => false,
                     'message' => __('Vendor account not found.'),

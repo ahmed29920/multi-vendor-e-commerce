@@ -65,14 +65,13 @@ class VendorUserService
                     'password' => Hash::make($data['password']),
                     'is_active' => true,
                     'is_verified' => false,
+                    'role' => 'vendor',
                 ];
 
                 $user = User::create($userData);
 
                 // Assign vendor_employee role to vendor user (not vendor owner)
-                if (\Spatie\Permission\Models\Role::where('name', 'vendor_employee')->exists()) {
-                    $user->assignRole('vendor_employee');
-                }
+                $user->assignRole('vendor_employee');
 
                 $data['user_id'] = $user->id;
             }
@@ -81,6 +80,8 @@ class VendorUserService
                 'vendor_id' => $vendorId,
                 'user_id' => $data['user_id'],
                 'is_active' => $data['is_active'] ?? true,
+                'user_type' => $data['user_type'] ?? 'owner',
+                'branch_id' => $data['branch_id'] ?? null,
             ];
 
             $vendorUser = $this->vendorUserRepository->create($vendorUserData);
@@ -122,7 +123,7 @@ class VendorUserService
                 if (isset($data['phone'])) {
                     $userData['phone'] = $data['phone'];
                 }
-                if (isset($data['password']) && !empty($data['password'])) {
+                if (isset($data['password']) && ! empty($data['password'])) {
                     $userData['password'] = Hash::make($data['password']);
                 }
 
@@ -134,8 +135,14 @@ class VendorUserService
             if (isset($data['is_active'])) {
                 $vendorUserData['is_active'] = $data['is_active'];
             }
+            if (isset($data['user_type'])) {
+                $vendorUserData['user_type'] = $data['user_type'];
+            }
+            if (isset($data['branch_id'])) {
+                $vendorUserData['branch_id'] = $data['branch_id'];
+            }
 
-            if (!empty($vendorUserData)) {
+            if (! empty($vendorUserData)) {
                 $this->vendorUserRepository->update($vendorUser, $vendorUserData);
             }
 

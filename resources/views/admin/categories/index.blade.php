@@ -35,6 +35,12 @@
                 <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas">
                     <i class="bi bi-funnel me-2"></i>{{ __('Filters') }}
                 </button>
+                <a href="{{ route('admin.categories.export', ['search' => request()->get('search'), 'status' => request()->get('status'), 'featured' => request()->get('featured'), 'parent_id' => request()->get('parent_id')]) }}" class="btn btn-success">
+                    <i class="bi bi-download me-2"></i>{{ __('Export') }}
+                </a>
+                <a href="{{ route('admin.categories.import') }}" class="btn btn-info text-white">
+                    <i class="bi bi-upload me-2"></i>{{ __('Import') }}
+                </a>
                 <a href="{{ route('admin.categories.create') }}" class="btn btn-primary">
                     <i class="bi bi-plus-lg me-2"></i>{{ __('Add Category') }}
                 </a>

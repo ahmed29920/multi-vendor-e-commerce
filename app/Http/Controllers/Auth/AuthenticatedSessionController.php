@@ -34,6 +34,16 @@ class AuthenticatedSessionController extends Controller
         if ($user->hasRole('admin')) {
             return redirect()->intended(route('admin.dashboard', absolute: false));
         } elseif ($user->hasRole('vendor') || $user->hasRole('vendor_employee')) {
+            // Check if user is a branch user
+            $vendorUser = \App\Models\VendorUser::where('user_id', $user->id)
+                ->where('is_active', true)
+                ->first();
+
+            if ($vendorUser && $vendorUser->user_type === 'branch') {
+                // Redirect branch users to branch dashboard
+                return redirect()->intended(route('vendor.branch.dashboard', absolute: false));
+            }
+
             // Check if user has view-dashboard permission (vendor has all permissions, vendor_employee needs specific permission)
             if (vendorCan('view-dashboard')) {
                 return redirect()->intended(route('vendor.dashboard', absolute: false));

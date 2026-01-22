@@ -16,7 +16,7 @@ class VendorUserMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             abort(403, __('Unauthorized.'));
         }
 
@@ -38,8 +38,16 @@ class VendorUserMiddleware
                 ->where('is_active', true)
                 ->first();
 
-
             if ($vendorUser && $vendorUser->vendor && $vendorUser->vendor->is_active) {
+                // If user is a branch user, restrict access to branch-specific routes
+                if ($vendorUser->user_type === 'branch') {
+                    // Allow access to branch dashboard and branch-specific routes
+                    // Block access to full vendor dashboard
+                    if ($request->routeIs('vendor.dashboard')) {
+                        abort(403, __('Branch users can only access branch dashboard.'));
+                    }
+                }
+
                 return $next($request);
             }
         }
@@ -49,13 +57,22 @@ class VendorUserMiddleware
             ->where('is_active', true)
             ->first();
 
-        if (!$vendorUser) {
+        if (! $vendorUser) {
             abort(403, __('You do not have access to vendor area.'));
         }
 
         // Check if vendor is active
-        if (!$vendorUser->vendor || !$vendorUser->vendor->is_active) {
+        if (! $vendorUser->vendor || ! $vendorUser->vendor->is_active) {
             abort(403, __('Your vendor account is not active.'));
+        }
+
+        // If user is a branch user, restrict access to branch-specific routes
+        if ($vendorUser->user_type === 'branch') {
+            // Allow access to branch dashboard and branch-specific routes
+            // Block access to full vendor dashboard
+            if ($request->routeIs('vendor.dashboard')) {
+                abort(403, __('Branch users can only access branch dashboard.'));
+            }
         }
 
         return $next($request);

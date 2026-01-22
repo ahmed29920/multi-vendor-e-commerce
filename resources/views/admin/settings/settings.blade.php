@@ -172,6 +172,20 @@
                             <input type="number" class="form-control" id="profit_value" name="profit_value"
                                 value="{{ setting('profit_value', '') }}">
                         </div>
+
+                        {{-- Referral Points (number) --}}
+                        <div class="form-group mb-3">
+                            <label for="referral_points">{{ __('Referral Points') }}</label>
+                            <input type="number" class="form-control" id="referral_points" name="referral_points"
+                                value="{{ setting('referral_points', '0') }}">
+                        </div>
+
+                        {{-- Cashback Points Rate (number) --}}
+                        <div class="form-group mb-3">
+                            <label for="cache_back_points_rate">{{ __('Cashback Points Rate') }}</label>
+                            <input type="number" class="form-control" id="cache_back_points_rate" name="cache_back_points_rate"
+                                value="{{ setting('cache_back_points_rate', '0') }}">
+                        </div>
                     </div>
                 </div>
             </form>

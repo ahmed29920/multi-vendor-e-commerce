@@ -19,7 +19,51 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'vendor.user' => \App\Http\Middleware\VendorUserMiddleware::class,
         ]);
+
+        // Global API rate limiting (60 requests per minute for all API routes)
+        $middleware->api(prepend: [
+            \Illuminate\Routing\Middleware\ThrottleRequests::class.':60,1',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
-    })->create();
+        // Handle ModelNotFoundException (any model) for API requests
+        $exceptions->render(function (
+            \Illuminate\Database\Eloquent\ModelNotFoundException $e,
+            \Illuminate\Http\Request $request
+        ) {
+            if ($request->expectsJson() || $request->is('api/*') || $request->wantsJson() || str_starts_with($request->path(), 'api/')) {
+                $model = class_basename($e->getModel());
+                $message = $model.' not found.';
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], 404);
+            }
+
+            return null;
+        });
+
+        // Handle NotFoundHttpException that wraps ModelNotFoundException (any model) for API requests
+        $exceptions->render(function (
+            \Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e,
+            \Illuminate\Http\Request $request
+        ) {
+            $previous = $e->getPrevious();
+
+            if ($previous instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                if ($request->expectsJson() || $request->is('api/*') || $request->wantsJson() || str_starts_with($request->path(), 'api/')) {
+                    $model = class_basename($previous->getModel());
+                    $message = $model.' not found.';
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => $message,
+                    ], 404);
+                }
+            }
+
+            return null;
+        });
+    })
+    ->create();

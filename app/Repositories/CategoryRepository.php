@@ -21,15 +21,14 @@ class CategoryRepository
      */
     public function getPaginatedCategories(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
-        // dd($filters);
         $query = Category::with(['parent', 'children']);
 
         // Apply search filter
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = trim($filters['search']);
             $query->where(function ($q) use ($search) {
                 $q->whereRaw("JSON_EXTRACT(name, '$.en') LIKE ?", ["%{$search}%"])
-                  ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"]);
+                    ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"]);
             });
         }
 
@@ -40,7 +39,6 @@ class CategoryRepository
 
         // Apply featured filter
         if (isset($filters['featured']) && $filters['featured'] != '') {
-            // dd($filters['featured']);
             $query->where('is_featured', $filters['featured'] == 1);
         }
 
@@ -53,7 +51,17 @@ class CategoryRepository
             }
         }
 
-        return $query->latest()->paginate($perPage);
+        // Sorting
+        $sort = (string) ($filters['sort'] ?? 'latest');
+
+        match ($sort) {
+            'oldest' => $query->oldest(),
+            'name_asc' => $query->orderByRaw("JSON_EXTRACT(name, '$.en') ASC"),
+            'name_desc' => $query->orderByRaw("JSON_EXTRACT(name, '$.en') DESC"),
+            default => $query->latest(),
+        };
+
+        return $query->paginate($perPage);
     }
 
     /**
@@ -185,5 +193,53 @@ class CategoryRepository
     {
         // Note: This assumes you might add a slug field later
         return Category::where('slug', $slug)->first();
+    }
+
+    /**
+     * Get all categories with filters for export (no pagination)
+     */
+    public function getAllCategoriesForExport(array $filters = []): Collection
+    {
+        $query = Category::with(['parent', 'children', 'products']);
+
+        // Apply search filter
+        if (! empty($filters['search'])) {
+            $search = trim($filters['search']);
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw("JSON_EXTRACT(name, '$.en') LIKE ?", ["%{$search}%"])
+                    ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"]);
+            });
+        }
+
+        // Apply status filter
+        if (isset($filters['status']) && $filters['status'] != '') {
+            $query->where('is_active', $filters['status'] == 'active');
+        }
+
+        // Apply featured filter
+        if (isset($filters['featured']) && $filters['featured'] != '') {
+            $query->where('is_featured', $filters['featured'] == 1);
+        }
+
+        // Apply parent filter
+        if (isset($filters['parent_id']) && $filters['parent_id'] != '') {
+            if ($filters['parent_id'] == 'root') {
+                $query->whereNull('parent_id');
+            } else {
+                $query->where('parent_id', $filters['parent_id']);
+            }
+        }
+
+        // Sorting
+        $sort = (string) ($filters['sort'] ?? 'latest');
+
+        match ($sort) {
+            'oldest' => $query->oldest(),
+            'name_asc' => $query->orderByRaw("JSON_EXTRACT(name, '$.en') ASC"),
+            'name_desc' => $query->orderByRaw("JSON_EXTRACT(name, '$.en') DESC"),
+            default => $query->latest(),
+        };
+
+        return $query->get();
     }
 }

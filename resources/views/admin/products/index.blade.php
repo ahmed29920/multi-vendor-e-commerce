@@ -35,6 +35,12 @@
                 <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas">
                     <i class="bi bi-funnel me-2"></i>{{ __('Filters') }}
                 </button>
+                <a href="{{ route('admin.products.export', request()->query()) }}" class="btn btn-success">
+                    <i class="bi bi-download me-2"></i>{{ __('Export') }}
+                </a>
+                <a href="{{ route('admin.products.import') }}" class="btn btn-info text-white">
+                    <i class="bi bi-upload me-2"></i>{{ __('Import') }}
+                </a>
                 <a href="{{ route('admin.products.create') }}" class="btn btn-primary">
                     <i class="bi bi-plus-lg me-2"></i>{{ __('Add Product') }}
                 </a>
@@ -174,6 +180,62 @@
                 </select>
             </div>
 
+            <!-- Price Range -->
+            <div class="mb-4">
+                <label class="form-label fw-bold">{{ __('Price Range') }}</label>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <input type="number"
+                               step="0.01"
+                               class="form-control"
+                               id="filterMinPrice"
+                               name="min_price"
+                               placeholder="{{ __('Min') }}"
+                               value="{{ $filters['min_price'] ?? '' }}">
+                    </div>
+                    <div class="col-6">
+                        <input type="number"
+                               step="0.01"
+                               class="form-control"
+                               id="filterMaxPrice"
+                               name="max_price"
+                               placeholder="{{ __('Max') }}"
+                               value="{{ $filters['max_price'] ?? '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Is New Filter -->
+            <div class="mb-4">
+                <label class="form-label fw-bold">{{ __('New') }}</label>
+                <select class="form-select" id="filterIsNew" name="is_new">
+                    <option value="">{{ __('All') }}</option>
+                    <option value="1" {{ ($filters['is_new'] ?? '') === '1' ? 'selected' : '' }}>{{ __('New Only') }}</option>
+                    <option value="0" {{ ($filters['is_new'] ?? '') === '0' ? 'selected' : '' }}>{{ __('Not New') }}</option>
+                </select>
+            </div>
+
+            <!-- Bookable Filter -->
+            <div class="mb-4">
+                <label class="form-label fw-bold">{{ __('Bookable') }}</label>
+                <select class="form-select" id="filterIsBookable" name="is_bookable">
+                    <option value="">{{ __('All') }}</option>
+                    <option value="1" {{ ($filters['is_bookable'] ?? '') === '1' ? 'selected' : '' }}>{{ __('Bookable Only') }}</option>
+                    <option value="0" {{ ($filters['is_bookable'] ?? '') === '0' ? 'selected' : '' }}>{{ __('Not Bookable') }}</option>
+                </select>
+            </div>
+
+            <!-- Sort -->
+            <div class="mb-4">
+                <label class="form-label fw-bold">{{ __('Sort') }}</label>
+                <select class="form-select" id="filterSort" name="sort">
+                    <option value="" {{ ($filters['sort'] ?? '') === '' ? 'selected' : '' }}>{{ __('Latest') }}</option>
+                    <option value="oldest" {{ ($filters['sort'] ?? '') === 'oldest' ? 'selected' : '' }}>{{ __('Oldest') }}</option>
+                    <option value="price_asc" {{ ($filters['sort'] ?? '') === 'price_asc' ? 'selected' : '' }}>{{ __('Price (Low → High)') }}</option>
+                    <option value="price_desc" {{ ($filters['sort'] ?? '') === 'price_desc' ? 'selected' : '' }}>{{ __('Price (High → Low)') }}</option>
+                </select>
+            </div>
+
             <!-- Filter Actions -->
             <div class="d-grid gap-2">
                 <button type="button" class="btn btn-primary" id="applyFiltersBtn">
@@ -237,7 +299,12 @@ document.addEventListener('DOMContentLoaded', function() {
             type: document.getElementById('filterType')?.value || '',
             vendor_id: document.getElementById('filterVendor')?.value || '',
             category_id: document.getElementById('filterCategory')?.value || '',
-            stock: document.getElementById('filterStock')?.value || ''
+            stock: document.getElementById('filterStock')?.value || '',
+            min_price: document.getElementById('filterMinPrice')?.value || '',
+            max_price: document.getElementById('filterMaxPrice')?.value || '',
+            is_new: document.getElementById('filterIsNew')?.value || '',
+            is_bookable: document.getElementById('filterIsBookable')?.value || '',
+            sort: document.getElementById('filterSort')?.value || ''
         };
     }
 

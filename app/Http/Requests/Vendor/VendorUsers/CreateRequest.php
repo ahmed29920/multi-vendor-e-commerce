@@ -28,6 +28,12 @@ class CreateRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:20', Rule::unique('users', 'phone')->whereNull('deleted_at')],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'is_active' => ['boolean'],
+            'user_type' => ['required', 'string', Rule::in(['owner', 'branch'])],
+            'branch_id' => [
+                'nullable',
+                'required_if:user_type,branch',
+                'exists:branches,id',
+            ],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ];
@@ -58,8 +64,22 @@ class CreateRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            if (!$this->email && !$this->phone) {
+            if (! $this->email && ! $this->phone) {
                 $validator->errors()->add('email', __('You must provide at least an email or phone number.'));
+            }
+
+            // Validate branch belongs to vendor
+            if ($this->user_type === 'branch' && $this->branch_id) {
+                $vendor = $this->user()->vendor();
+                if ($vendor) {
+                    $branchExists = \App\Models\Branch::where('id', $this->branch_id)
+                        ->where('vendor_id', $vendor->id)
+                        ->exists();
+
+                    if (! $branchExists) {
+                        $validator->errors()->add('branch_id', __('The selected branch does not belong to your vendor account.'));
+                    }
+                }
             }
         });
     }

@@ -102,6 +102,41 @@
                                         <input type="password" class="form-control"
                                             id="password_confirmation" name="password_confirmation" required>
                                     </div>
+
+                                    <!-- User Type -->
+                                    <div class="mb-3">
+                                        <label for="user_type" class="form-label">{{ __('User Type') }} *</label>
+                                        <select class="form-select @error('user_type') is-invalid @enderror" id="user_type" name="user_type" required>
+                                            <option value="owner" {{ old('user_type', 'owner') === 'owner' ? 'selected' : '' }}>
+                                                {{ __('Owner') }}
+                                            </option>
+                                            <option value="branch" {{ old('user_type', 'owner') === 'branch' ? 'selected' : '' }}>
+                                                {{ __('Branch') }}
+                                            </option>
+                                        </select>
+                                        @error('user_type')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                        <small class="text-muted">{{ __('Select whether this user is an owner or branch user') }}</small>
+                                    </div>
+
+                                    <!-- Branch Selection (shown only when user_type is branch) -->
+                                    <div class="mb-3" id="branch_selection" style="display: {{ old('user_type', 'owner') === 'branch' ? 'block' : 'none' }};">
+                                        <label for="branch_id" class="form-label">{{ __('Branch') }} <span id="branch_required" style="display: {{ old('user_type', 'owner') === 'branch' ? 'inline' : 'none' }};">*</span></label>
+                                        <select class="form-select @error('branch_id') is-invalid @enderror" id="branch_id" name="branch_id">
+                                            <option value="">{{ __('Select a branch') }}</option>
+                                            @foreach($branches as $branch)
+                                                <option value="{{ $branch->id }}"
+                                                    {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
+                                                    {{ $branch->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @error('branch_id')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                        <small class="text-muted">{{ __('Select the branch for this user') }}</small>
+                                    </div>
                                 </div>
 
                                 <!-- Right Column -->
@@ -190,3 +225,29 @@
     </div>
 
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userTypeSelect = document.getElementById('user_type');
+    const branchSelection = document.getElementById('branch_selection');
+    const branchIdSelect = document.getElementById('branch_id');
+    const branchRequired = document.getElementById('branch_required');
+
+    if (userTypeSelect && branchSelection) {
+        userTypeSelect.addEventListener('change', function() {
+            if (this.value === 'branch') {
+                branchSelection.style.display = 'block';
+                branchRequired.style.display = 'inline';
+                branchIdSelect.setAttribute('required', 'required');
+            } else {
+                branchSelection.style.display = 'none';
+                branchRequired.style.display = 'none';
+                branchIdSelect.removeAttribute('required');
+                branchIdSelect.value = '';
+            }
+        });
+    }
+});
+</script>
+@endpush

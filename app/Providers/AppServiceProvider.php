@@ -2,10 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\VendorUser;
 use App\Models\Verification;
-use Illuminate\Support\ServiceProvider;
+use App\View\Composers\SidebarComposer;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -44,5 +49,12 @@ class AppServiceProvider extends ServiceProvider
                 ]);
         });
 
+        // Share vendor user data with all views to avoid duplicate queries
+        View::composer('*', SidebarComposer::class);
+
+        // Configure route model binding for vendor-users (exclude soft deleted)
+        Route::bind('vendor_user', function ($value) {
+            return VendorUser::where('id', $value)->firstOrFail();
+        });
     }
 }

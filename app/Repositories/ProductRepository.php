@@ -21,15 +21,37 @@ class ProductRepository
      */
     public function getPaginatedProducts(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
-        $query = Product::with(['vendor', 'categories', 'images', 'variants', 'branchProductStocks', 'variants.branchVariantStocks']);
+        // Eager load relationships
+        $with = ['vendor', 'categories', 'images', 'variants', 'branchProductStocks', 'variants.branchVariantStocks', 'ratings'];
+
+        // If filtering by branch, we can optimize eager loading
+        $branchId = $filters['branch_id'] ?? null;
+        if ($branchId) {
+            // Only load branch stocks for the specific branch
+            $with = [
+                'vendor',
+                'categories',
+                'images',
+                'variants',
+                'ratings',
+                'branchProductStocks' => function ($query) use ($branchId) {
+                    $query->where('branch_id', $branchId);
+                },
+                'variants.branchVariantStocks' => function ($query) use ($branchId) {
+                    $query->where('branch_id', $branchId);
+                },
+            ];
+        }
+
+        $query = Product::with($with);
 
         // Apply search filter
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = trim($filters['search']);
             $query->where(function ($q) use ($search) {
                 $q->whereRaw("JSON_EXTRACT(name, '$.en') LIKE ?", ["%{$search}%"])
-                  ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"])
-                  ->orWhere('sku', 'LIKE', "%{$search}%");
+                    ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"])
+                    ->orWhere('sku', 'LIKE', "%{$search}%");
             });
         }
 
@@ -65,28 +87,97 @@ class ProductRepository
             });
         }
 
+        // Apply branch filter - only show products with stock in specific branch
+        if (isset($filters['branch_id']) && $filters['branch_id'] != '') {
+            $branchId = $filters['branch_id'];
+            $query->where(function ($q) use ($branchId) {
+                // Products with stock in this branch (simple products)
+                $q->whereHas('branchProductStocks', function ($subQ) use ($branchId) {
+                    $subQ->where('branch_id', $branchId);
+                })
+                // Or products with variants that have stock in this branch
+                    ->orWhereHas('variants.branchVariantStocks', function ($subQ) use ($branchId) {
+                        $subQ->where('branch_id', $branchId);
+                    });
+            });
+        }
+
         // Apply stock filter (based on branch stocks)
         if (isset($filters['stock']) && $filters['stock'] != '') {
+            $branchId = $filters['branch_id'] ?? null;
+
             if ($filters['stock'] == 'in_stock') {
-                $query->where(function ($q) {
-                    $q->whereHas('branchProductStocks', function ($subQ) {
-                        $subQ->where('quantity', '>', 0);
-                    })->orWhereHas('variants.branchVariantStocks', function ($subQ) {
-                        $subQ->where('quantity', '>', 0);
-                    });
+                $query->where(function ($q) use ($branchId) {
+                    if ($branchId) {
+                        // Filter by specific branch
+                        $q->whereHas('branchProductStocks', function ($subQ) use ($branchId) {
+                            $subQ->where('branch_id', $branchId)
+                                ->where('quantity', '>', 0);
+                        })->orWhereHas('variants.branchVariantStocks', function ($subQ) use ($branchId) {
+                            $subQ->where('branch_id', $branchId)
+                                ->where('quantity', '>', 0);
+                        });
+                    } else {
+                        // Filter across all branches
+                        $q->whereHas('branchProductStocks', function ($subQ) {
+                            $subQ->where('quantity', '>', 0);
+                        })->orWhereHas('variants.branchVariantStocks', function ($subQ) {
+                            $subQ->where('quantity', '>', 0);
+                        });
+                    }
                 });
             } elseif ($filters['stock'] == 'out_of_stock') {
-                $query->where(function ($q) {
-                    $q->whereDoesntHave('branchProductStocks', function ($subQ) {
-                        $subQ->where('quantity', '>', 0);
-                    })->whereDoesntHave('variants.branchVariantStocks', function ($subQ) {
-                        $subQ->where('quantity', '>', 0);
-                    });
+                $query->where(function ($q) use ($branchId) {
+                    if ($branchId) {
+                        // Filter by specific branch
+                        $q->whereDoesntHave('branchProductStocks', function ($subQ) use ($branchId) {
+                            $subQ->where('branch_id', $branchId)
+                                ->where('quantity', '>', 0);
+                        })->whereDoesntHave('variants.branchVariantStocks', function ($subQ) use ($branchId) {
+                            $subQ->where('branch_id', $branchId)
+                                ->where('quantity', '>', 0);
+                        });
+                    } else {
+                        // Filter across all branches
+                        $q->whereDoesntHave('branchProductStocks', function ($subQ) {
+                            $subQ->where('quantity', '>', 0);
+                        })->whereDoesntHave('variants.branchVariantStocks', function ($subQ) {
+                            $subQ->where('quantity', '>', 0);
+                        });
+                    }
                 });
             }
         }
 
-        return $query->latest()->paginate($perPage);
+        // Price range
+        if (isset($filters['min_price']) && $filters['min_price'] !== '') {
+            $query->where('price', '>=', $filters['min_price']);
+        }
+
+        if (isset($filters['max_price']) && $filters['max_price'] !== '') {
+            $query->where('price', '<=', $filters['max_price']);
+        }
+
+        // Flags
+        if (isset($filters['is_new']) && $filters['is_new'] !== '') {
+            $query->where('is_new', (bool) $filters['is_new']);
+        }
+
+        if (isset($filters['is_bookable']) && $filters['is_bookable'] !== '') {
+            $query->where('is_bookable', (bool) $filters['is_bookable']);
+        }
+
+        // Sorting
+        $sort = (string) ($filters['sort'] ?? 'latest');
+
+        match ($sort) {
+            'oldest' => $query->oldest(),
+            'price_asc' => $query->orderBy('price', 'asc'),
+            'price_desc' => $query->orderBy('price', 'desc'),
+            default => $query->latest(),
+        };
+
+        return $query->paginate($perPage);
     }
 
     /**
@@ -94,7 +185,16 @@ class ProductRepository
      */
     public function getProductById(int $id): ?Product
     {
-        return Product::with(['vendor', 'categories', 'images', 'variants.values', 'variants.branchVariantStocks', 'branchProductStocks', 'relatedProducts'])->find($id);
+        return Product::with([
+            'vendor',
+            'categories',
+            'images',
+            'variants.values.variantOption',
+            'variants.branchVariantStocks',
+            'branchProductStocks',
+            'relatedProducts',
+            'ratings.user',
+        ])->find($id);
     }
 
     /**
@@ -162,10 +262,10 @@ class ProductRepository
         return Product::whereHas('categories', function ($q) use ($categoryId) {
             $q->where('categories.id', $categoryId);
         })
-        ->active()
-        ->approved()
-        ->with(['vendor', 'images'])
-        ->get();
+            ->active()
+            ->approved()
+            ->with(['vendor', 'images'])
+            ->get();
     }
 
     /**
@@ -215,11 +315,11 @@ class ProductRepository
     {
         return Product::where(function ($q) use ($search) {
             $q->whereRaw("JSON_EXTRACT(name, '$.en') LIKE ?", ["%{$search}%"])
-              ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"])
-              ->orWhere('sku', 'LIKE', "%{$search}%");
+                ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"])
+                ->orWhere('sku', 'LIKE', "%{$search}%");
         })
-        ->with(['vendor', 'categories', 'images'])
-        ->get();
+            ->with(['vendor', 'categories', 'images'])
+            ->get();
     }
 
     /**
@@ -235,7 +335,7 @@ class ProductRepository
      */
     public function attachCategory(Product $product, int $categoryId): void
     {
-        if (!$product->categories()->where('categories.id', $categoryId)->exists()) {
+        if (! $product->categories()->where('categories.id', $categoryId)->exists()) {
             $product->categories()->attach($categoryId);
         }
     }

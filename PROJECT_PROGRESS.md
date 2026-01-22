@@ -255,28 +255,34 @@ app/
 - [ ] Wishlist functionality
 
 #### Backend
-- [ ] Order management system
-- [ ] Payment gateway integration
-- [ ] Invoice generation
-- [ ] Email notifications
+- [x] Order management system (admin & vendor dashboards)
+- [x] Payment gateway integration scaffolding (payment_status + wallet/points handling)
+- [x] Invoice generation (PDF invoices for vendor orders and full admin orders)
+- [x] Advanced order status workflow (Pending → Processing → Shipped → Delivered → Cancelled/Refunded)
+- [x] Vendor order status sync with main order (auto-processing/delivered when appropriate)
+- [x] Order cancel & refund flows:
+  - Cancel (pending/processing): refund wallet_used + points/cashback, restore stock for processing vendor orders, cancel vendor orders, mark main order cancelled.
+  - Refund (delivered): refund full order total to wallet (gateway + wallet), keep points, restore stock for delivered vendor orders, set payment_status/refund_status.
+- [x] Email notifications for order & vendor order status changes
 - [ ] SMS notifications
-- [ ] Reporting and analytics
+- [x] Email notifications
+- [x] Reporting and analytics
 - [ ] Export functionality (CSV, PDF)
-- [ ] Advanced search functionality
-- [ ] Product recommendations
-- [ ] Inventory alerts
+- [x] Advanced search functionality
+- [x] Product recommendations
+- [x] Inventory alerts
 
 #### Vendor Features
-- [ ] Order fulfillment
-- [ ] Sales reports
-- [ ] Earnings dashboard
-- [ ] Product performance analytics
-- [ ] Customer management
+- [x] Order fulfillment
+- [x] Sales reports
+- [x] Earnings dashboard
+- [x] Product performance analytics
+- [x] Customer management
 
 #### Admin Features
-- [ ] Advanced analytics dashboard
-- [ ] Revenue reports
-- [ ] Vendor performance metrics
+- [x] Advanced analytics dashboard
+- [x] Revenue reports
+- [x] Vendor performance metrics
 - [ ] System logs and audit trail
 - [ ] Backup and restore functionality
 
@@ -388,6 +394,17 @@ app/
 - ✅ Enhanced error handling in branch loading functionality
 - ✅ Added console logging for debugging branch loading issues
 
+#### Reporting & Analytics Enhancements
+- ✅ Added dedicated Earnings dashboards for admin and vendors (net revenue, commissions, withdrawals, balances)
+- ✅ Implemented Product Performance dashboards (admin & vendor) with filters (product, category, vendor, status, date range)
+- ✅ Implemented Vendor Performance dashboards:
+  - Admin: KPIs for vendor gross sales, commission, net earnings, withdrawals, balances
+  - Vendor: self-view of gross/commission/net, withdrawals, balances
+- ✅ Added vendor share-of-platform metrics:
+  - Percentage of total platform sales per vendor for the selected period
+  - Percentage of total refunded orders per vendor for the selected period
+- ✅ Added offcanvas-based advanced filters (date range, payment status, order status, vendor/product/category) using GET so parameters appear in URL
+
 ### Previous Updates
 - ✅ Created admin subscription show view
 - ✅ Created vendor subscription show view
@@ -401,16 +418,16 @@ app/
 ### Immediate Priorities
 1. Complete customer-facing storefront
 2. Implement shopping cart functionality
-3. Develop order management system
+3. Develop customer-facing order history and tracking pages
 4. Integrate payment gateway
-5. Add email notification system
+5. Enhance notification system (email/database templates, preferences, coverage)
 
 ### Short-term Goals
-1. Implement customer reviews and ratings
-2. Add advanced search and filtering
-3. Create reporting and analytics dashboard
+1. Refine customer reviews and ratings UX (filters, pagination, moderation)
+2. Extend advanced search and filtering to remaining areas and mobile UX
+3. Extend reporting and analytics dashboards with more KPIs and charts
 4. Develop mobile-responsive design improvements
-5. Add export functionality
+5. Add export functionality (CSV/PDF) for key reports
 
 ### Long-term Goals
 1. Mobile app development

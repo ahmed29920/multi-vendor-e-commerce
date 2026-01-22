@@ -57,15 +57,17 @@
                 </p>
             </div>
             <div class="d-flex gap-2">
-                <a href="{{ route('vendor.products.edit', $product) }}" class="btn btn-primary">
-                    <i class="bi bi-pencil me-2"></i>{{ __('Edit Product') }}
-                </a>
-                <button type="button" class="btn btn-danger delete-product-btn"
-                        data-product-id="{{ $product->id }}"
-                        data-product-name="{{ $product->getTranslation('name', app()->getLocale()) }}"
-                        data-delete-url="{{ route('vendor.products.destroy', $product) }}">
-                    <i class="bi bi-trash me-2"></i>{{ __('Delete') }}
-                </button>
+                @if(canCreateProducts())
+                    <a href="{{ route('vendor.products.edit', $product) }}" class="btn btn-primary">
+                        <i class="bi bi-pencil me-2"></i>{{ __('Edit Product') }}
+                    </a>
+                    <button type="button" class="btn btn-danger delete-product-btn"
+                            data-product-id="{{ $product->id }}"
+                            data-product-name="{{ $product->getTranslation('name', app()->getLocale()) }}"
+                            data-delete-url="{{ route('vendor.products.destroy', $product) }}">
+                        <i class="bi bi-trash me-2"></i>{{ __('Delete') }}
+                    </button>
+                @endif
                 <a href="{{ route('vendor.products.index') }}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left me-2"></i>{{ __('Back') }}
                 </a>
@@ -98,10 +100,10 @@
                                     </div>
                                     <div class="flex-grow-1 ms-3">
                                         <small class="text-muted d-block">{{ __('Price') }}</small>
-                                        <strong class="d-block">{{ number_format($product->price, 2) }} {{ setting('currency') }}</strong>
+                                        <strong class="d-block">{{ number_format($product->manager()->price(), 2) }} {{ setting('currency') }}</strong>
                                         @if($product->hasDiscount())
                                             <small class="text-success">
-                                                <i class="bi bi-arrow-down"></i> {{ number_format($product->final_price, 2) }} {{ setting('currency') }}
+                                                <i class="bi bi-arrow-down"></i> {{ number_format($product->manager()->finalPrice(), 2) }} {{ setting('currency') }}
                                             </small>
                                         @endif
                                     </div>
@@ -110,24 +112,53 @@
                             <div class="col-md-6 col-lg-3">
                                 <div class="d-flex align-items-center p-3   rounded">
                                     <div class="flex-shrink-0">
-                                        <i class="bi bi-{{ $product->isInStock() ? 'check-circle' : 'x-circle' }} fs-4 text-{{ $product->isInStock() ? 'success' : 'danger' }}"></i>
-                                    </div>
-                                    <div class="flex-grow-1 ms-3">
-                                        <small class="text-muted d-block">{{ __('Stock') }}</small>
-                                        @if($product->isInStock())
-                                            @php
-                                                $totalStock = 0;
+                                        @php
+                                            $currentBranch = currentBranch();
+                                            $branchStock = 0;
+                                            $isInStock = false;
+
+                                            if ($currentBranch) {
+                                                // Calculate stock only for current branch
                                                 if ($product->type === 'simple') {
-                                                    $totalStock = $product->branchProductStocks->sum('quantity');
+                                                    $branchStockRecord = $product->branchProductStocks->where('branch_id', $currentBranch->id)->first();
+                                                    $branchStock = $branchStockRecord ? $branchStockRecord->quantity : 0;
                                                 } else {
-                                                    $totalStock = $product->variants->sum(function($variant) {
+                                                    $branchStock = $product->variants->sum(function($variant) use ($currentBranch) {
+                                                        $stock = $variant->branchVariantStocks->where('branch_id', $currentBranch->id)->first();
+                                                        return $stock ? $stock->quantity : 0;
+                                                    });
+                                                }
+                                                $isInStock = $branchStock > 0;
+                                            } else {
+                                                // Calculate total stock across all branches for owner users
+                                                if ($product->type === 'simple') {
+                                                    $branchStock = $product->branchProductStocks->sum('quantity');
+                                                } else {
+                                                    $branchStock = $product->variants->sum(function($variant) {
                                                         return $variant->branchVariantStocks->sum('quantity');
                                                     });
                                                 }
-                                            @endphp
-                                            <strong class="d-block text-success">{{ $totalStock }} {{ __('in stock') }}</strong>
+                                                $isInStock = $branchStock > 0;
+                                            }
+                                        @endphp
+                                        <i class="bi bi-{{ $isInStock ? 'check-circle' : 'x-circle' }} fs-4 text-{{ $isInStock ? 'success' : 'danger' }}"></i>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <small class="text-muted d-block">
+                                            {{ $currentBranch ? __('Branch Stock') : __('Stock') }}
+                                            @if($currentBranch)
+                                                <span class="badge bg-info ms-1">{{ $currentBranch->name }}</span>
+                                            @endif
+                                        </small>
+                                        @if($isInStock)
+                                            <strong class="d-block text-success">{{ $branchStock }} {{ __('in stock') }}</strong>
                                         @else
                                             <strong class="d-block text-danger">{{ __('Out of Stock') }}</strong>
+                                        @endif
+                                        @if($currentBranch && vendorSetting('allow_branch_user_to_edit_stock', false))
+                                            <button type="button" class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#editStockModal">
+                                                <i class="bi bi-pencil me-1"></i>{{ __('Edit Stock') }}
+                                            </button>
                                         @endif
                                     </div>
                                 </div>
@@ -203,6 +234,17 @@
                             </button>
                         </li>
                     @endif
+                    @php
+                        $currentVendorUser = currentVendorUser();
+                        $isOwner = $currentVendorUser && $currentVendorUser->user_type === 'owner';
+                    @endphp
+                    @if($isOwner && isset($vendorBranches) && $vendorBranches->count() > 0)
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="branch-stock-tab" data-bs-toggle="tab" data-bs-target="#branch-stock" type="button" role="tab">
+                                <i class="bi bi-shop me-2"></i>{{ __('Branch Stock') }}
+                            </button>
+                        </li>
+                    @endif
                 </ul>
 
                 <div class="tab-content" id="productTabsContent">
@@ -268,7 +310,7 @@
                                         <div class="text-center p-3   rounded">
                                             <i class="bi bi-tag fs-3 text-primary mb-2"></i>
                                             <div class="small text-muted">{{ __('Base Price') }}</div>
-                                            <div class="h5 mb-0 fw-bold">{{ number_format($product->price, 2) }} {{ setting('currency') }}</div>
+                                            <div class="h5 mb-0 fw-bold">{{ number_format($product->manager()->price(), 2) }} {{ setting('currency') }}</div>
                                         </div>
                                     </div>
                                     @if($product->hasDiscount())
@@ -289,7 +331,7 @@
                                             <div class="text-center p-3 bg-success bg-opacity-10 rounded">
                                                 <i class="bi bi-check-circle fs-3 text-success mb-2"></i>
                                                 <div class="small text-muted">{{ __('Final Price') }}</div>
-                                                <div class="h5 mb-0 fw-bold text-success">{{ number_format($product->final_price, 2) }} {{ setting('currency') }}</div>
+                                                <div class="h5 mb-0 fw-bold text-success">{{ number_format($product->manager()->finalPrice(), 2) }} {{ setting('currency') }}</div>
                                             </div>
                                         </div>
                                     @endif
@@ -382,7 +424,19 @@
                                                     <th>{{ __('Name') }}</th>
                                                     <th>{{ __('SKU') }}</th>
                                                     <th>{{ __('Price') }}</th>
-                                                    <th>{{ __('Stock') }}</th>
+                                                    @php
+                                                        $currentVendorUser = currentVendorUser();
+                                                        $isOwner = $currentVendorUser && $currentVendorUser->user_type === 'owner';
+                                                        $currentBranch = currentBranch();
+                                                    @endphp
+                                                    @if($isOwner && isset($vendorBranches) && $vendorBranches->count() > 0)
+                                                        @foreach($vendorBranches as $branch)
+                                                            <th class="text-center">{{ __('Stock') }}<br><small class="text-muted">{{ $branch->name }}</small></th>
+                                                        @endforeach
+                                                        <th class="text-center">{{ __('Total') }}</th>
+                                                    @else
+                                                        <th>{{ __('Stock') }}</th>
+                                                    @endif
                                                     <th class="text-center">{{ __('Status') }}</th>
                                                 </tr>
                                             </thead>
@@ -400,21 +454,66 @@
                                                                 <span class="fw-semibold">{{ $variant->getTranslation('name', app()->getLocale()) }}</span>
                                                             </div>
                                                         </td>
-                                                        <td><code class="  px-2 py-1 rounded">{{ $variant->sku }}</code></td>
+                                                        <td><code class="px-2 py-1 rounded">{{ $variant->sku }}</code></td>
                                                         <td>
                                                             <strong>{{ number_format($variant->price, 2) }} {{ setting('currency') }}</strong>
                                                         </td>
-                                                        <td>
-                                                            @if($variant->hasStock())
-                                                                <span class="badge bg-success">
-                                                                    <i class="bi bi-check-circle me-1"></i>{{ $variant->total_stock }}
-                                                                </span>
-                                                            @else
-                                                                <span class="badge bg-danger">
-                                                                    <i class="bi bi-x-circle me-1"></i>{{ __('Out of Stock') }}
-                                                                </span>
-                                                            @endif
-                                                        </td>
+                                                        @if($isOwner && isset($vendorBranches) && $vendorBranches->count() > 0)
+                                                            @foreach($vendorBranches as $branch)
+                                                                <td class="text-center">
+                                                                    @php
+                                                                        $variantStock = $variant->branchVariantStocks->where('branch_id', $branch->id)->first();
+                                                                        $branchStock = $variantStock ? $variantStock->quantity : 0;
+                                                                    @endphp
+                                                                    @if($branchStock > 0)
+                                                                        <span class="badge bg-success">
+                                                                            <i class="bi bi-check-circle me-1"></i>{{ $branchStock }}
+                                                                        </span>
+                                                                    @else
+                                                                        <span class="badge bg-danger">
+                                                                            <i class="bi bi-x-circle me-1"></i>0
+                                                                        </span>
+                                                                    @endif
+                                                                </td>
+                                                            @endforeach
+                                                            <td class="text-center">
+                                                                @php
+                                                                    $totalVariantStock = $variant->branchVariantStocks->sum('quantity');
+                                                                @endphp
+                                                                @if($totalVariantStock > 0)
+                                                                    <span class="badge bg-primary">
+                                                                        <i class="bi bi-check-circle me-1"></i>{{ $totalVariantStock }}
+                                                                    </span>
+                                                                @else
+                                                                    <span class="badge bg-danger">
+                                                                        <i class="bi bi-x-circle me-1"></i>{{ __('Out of Stock') }}
+                                                                    </span>
+                                                                @endif
+                                                            </td>
+                                                        @else
+                                                            <td>
+                                                                @php
+                                                                    if ($currentBranch) {
+                                                                        $variantStock = $variant->branchVariantStocks->where('branch_id', $currentBranch->id)->first();
+                                                                        $variantBranchStock = $variantStock ? $variantStock->quantity : 0;
+                                                                    } else {
+                                                                        $variantBranchStock = $variant->branchVariantStocks->sum('quantity');
+                                                                    }
+                                                                @endphp
+                                                                @if($variantBranchStock > 0)
+                                                                    <span class="badge bg-success">
+                                                                        <i class="bi bi-check-circle me-1"></i>{{ $variantBranchStock }}
+                                                                        @if($currentBranch)
+                                                                            <small class="ms-1">({{ $currentBranch->name }})</small>
+                                                                        @endif
+                                                                    </span>
+                                                                @else
+                                                                    <span class="badge bg-danger">
+                                                                        <i class="bi bi-x-circle me-1"></i>{{ __('Out of Stock') }}
+                                                                    </span>
+                                                                @endif
+                                                            </td>
+                                                        @endif
                                                         <td class="text-center">
                                                             @if($variant->is_active)
                                                                 <span class="badge bg-success">{{ __('Active') }}</span>
@@ -446,6 +545,170 @@
                                                 <i class="bi bi-folder me-1"></i>{{ $category->getTranslation('name', app()->getLocale()) }}
                                             </span>
                                         @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Branch Stock Tab (for owner users) -->
+                    @php
+                        $currentVendorUser = currentVendorUser();
+                        $isOwner = $currentVendorUser && $currentVendorUser->user_type === 'owner';
+                    @endphp
+                    @if($isOwner && isset($vendorBranches) && $vendorBranches->count() > 0)
+                        <div class="tab-pane fade" id="branch-stock" role="tabpanel">
+                            <div class="card shadow-sm border-0">
+                                <div class="card-body p-4">
+                                    <h5 class="card-title mb-4">
+                                        <i class="bi bi-shop text-primary me-2"></i>{{ __('Branch Stock Breakdown') }}
+                                    </h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>{{ __('Branch Name') }}</th>
+                                                    @if($product->type === 'simple')
+                                                        <th class="text-end">{{ __('Stock') }}</th>
+                                                    @else
+                                                        <th class="text-end">{{ __('Total Stock') }}</th>
+                                                    @endif
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($vendorBranches as $branch)
+                                                    <tr>
+                                                        <td>
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bi bi-shop me-2 text-primary"></i>
+                                                                <strong>{{ $branch->name }}</strong>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            @php
+                                                                if ($product->type === 'simple') {
+                                                                    $branchStockRecord = $product->branchProductStocks->where('branch_id', $branch->id)->first();
+                                                                    $branchStock = $branchStockRecord ? $branchStockRecord->quantity : 0;
+                                                                } else {
+                                                                    $branchStock = $product->variants->sum(function($variant) use ($branch) {
+                                                                        $stock = $variant->branchVariantStocks->where('branch_id', $branch->id)->first();
+                                                                        return $stock ? $stock->quantity : 0;
+                                                                    });
+                                                                }
+                                                            @endphp
+                                                            @if($branchStock > 0)
+                                                                <span class="badge bg-success fs-6">
+                                                                    <i class="bi bi-check-circle me-1"></i>{{ $branchStock }}
+                                                                </span>
+                                                            @else
+                                                                <span class="badge bg-danger fs-6">
+                                                                    <i class="bi bi-x-circle me-1"></i>{{ __('Out of Stock') }}
+                                                                </span>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                            <tfoot class="table-light">
+                                                <tr>
+                                                    <th>{{ __('Total') }}</th>
+                                                    <th class="text-end">
+                                                        @php
+                                                            if ($product->type === 'simple') {
+                                                                $totalStock = $product->branchProductStocks->sum('quantity');
+                                                            } else {
+                                                                $totalStock = $product->variants->sum(function($variant) {
+                                                                    return $variant->branchVariantStocks->sum('quantity');
+                                                                });
+                                                            }
+                                                        @endphp
+                                                        <span class="badge bg-primary fs-6">{{ $totalStock }}</span>
+                                                    </th>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Branch Stock Tab (for owner users) -->
+                    @php
+                        $currentVendorUser = currentVendorUser();
+                        $isOwner = $currentVendorUser && $currentVendorUser->user_type === 'owner';
+                    @endphp
+                    @if($isOwner && isset($vendorBranches) && $vendorBranches->count() > 0)
+                        <div class="tab-pane fade" id="branch-stock" role="tabpanel">
+                            <div class="card shadow-sm border-0">
+                                <div class="card-body p-4">
+                                    <h5 class="card-title mb-4">
+                                        <i class="bi bi-shop text-primary me-2"></i>{{ __('Branch Stock Breakdown') }}
+                                    </h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>{{ __('Branch Name') }}</th>
+                                                    @if($product->type === 'simple')
+                                                        <th class="text-end">{{ __('Stock') }}</th>
+                                                    @else
+                                                        <th class="text-end">{{ __('Total Stock') }}</th>
+                                                    @endif
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($vendorBranches as $branch)
+                                                    <tr>
+                                                        <td>
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bi bi-shop me-2 text-primary"></i>
+                                                                <strong>{{ $branch->name }}</strong>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            @php
+                                                                if ($product->type === 'simple') {
+                                                                    $branchStockRecord = $product->branchProductStocks->where('branch_id', $branch->id)->first();
+                                                                    $branchStock = $branchStockRecord ? $branchStockRecord->quantity : 0;
+                                                                } else {
+                                                                    $branchStock = $product->variants->sum(function($variant) use ($branch) {
+                                                                        $stock = $variant->branchVariantStocks->where('branch_id', $branch->id)->first();
+                                                                        return $stock ? $stock->quantity : 0;
+                                                                    });
+                                                                }
+                                                            @endphp
+                                                            @if($branchStock > 0)
+                                                                <span class="badge bg-success fs-6">
+                                                                    <i class="bi bi-check-circle me-1"></i>{{ $branchStock }}
+                                                                </span>
+                                                            @else
+                                                                <span class="badge bg-danger fs-6">
+                                                                    <i class="bi bi-x-circle me-1"></i>{{ __('Out of Stock') }}
+                                                                </span>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                            <tfoot class="table-light">
+                                                <tr>
+                                                    <th>{{ __('Total') }}</th>
+                                                    <th class="text-end">
+                                                        @php
+                                                            if ($product->type === 'simple') {
+                                                                $totalStock = $product->branchProductStocks->sum('quantity');
+                                                            } else {
+                                                                $totalStock = $product->variants->sum(function($variant) {
+                                                                    return $variant->branchVariantStocks->sum('quantity');
+                                                                });
+                                                            }
+                                                        @endphp
+                                                        <span class="badge bg-primary fs-6">{{ $totalStock }}</span>
+                                                    </th>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -541,12 +804,12 @@
                     </div>
                     <div class="card-body">
                         <div class="d-grid gap-2">
-                            @if(auth()->user()->hasPermissionTo('edit-products') || auth()->user()->hasPermissionTo('manage-products') || auth()->user()->hasRole('vendor'))
+                            @if(canCreateProducts())
                                 <a href="{{ route('vendor.products.edit', $product) }}" class="btn btn-outline-primary">
                                     <i class="bi bi-pencil me-2"></i>{{ __('Edit Product') }}
                                 </a>
                             @endif
-                            @if(auth()->user()->hasPermissionTo('delete-products') || auth()->user()->hasPermissionTo('manage-products') || auth()->user()->hasRole('vendor'))
+                            @if(canCreateProducts())
                                 <button type="button" class="btn btn-outline-danger delete-product-btn"
                                         data-product-id="{{ $product->id }}"
                                         data-product-name="{{ $product->getTranslation('name', app()->getLocale()) }}"
@@ -595,6 +858,80 @@
         </div>
 
     </div>
+
+    <!-- Edit Stock Modal (for branch users) -->
+    @if(currentBranch() && vendorSetting('allow_branch_user_to_edit_stock', false))
+        <div class="modal fade" id="editStockModal" tabindex="-1" aria-labelledby="editStockModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form id="editStockForm">
+                        @csrf
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editStockModalLabel">{{ __('Edit Stock') }} - {{ currentBranch()->name }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            @if($product->type === 'simple')
+                                @php
+                                    $currentBranch = currentBranch();
+                                    $branchStock = $product->branchProductStocks->where('branch_id', $currentBranch->id)->first();
+                                @endphp
+                                <div class="mb-3">
+                                    <label for="stock_quantity" class="form-label">{{ __('Stock Quantity') }}</label>
+                                    <input type="number" class="form-control" id="stock_quantity" name="quantity" value="{{ $branchStock ? $branchStock->quantity : 0 }}" min="0" required>
+                                    <input type="hidden" name="branch_id" value="{{ $currentBranch->id }}">
+                                    <input type="hidden" name="product_id" value="{{ $product->id }}">
+                                    <input type="hidden" name="type" value="simple">
+                                </div>
+                            @else
+                                <div class="mb-3">
+                                    <label class="form-label">{{ __('Variant Stock') }}</label>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>{{ __('Variant') }}</th>
+                                                    <th>{{ __('Stock') }}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @php
+                                                    $currentBranch = currentBranch();
+                                                @endphp
+                                                @foreach($product->variants as $variant)
+                                                    @php
+                                                        $variantStock = $variant->branchVariantStocks->where('branch_id', $currentBranch->id)->first();
+                                                    @endphp
+                                                    <tr>
+                                                        <td>{{ $variant->getTranslation('name', app()->getLocale()) }}</td>
+                                                        <td>
+                                                            <input type="number"
+                                                                   class="form-control form-control-sm variant-stock-input"
+                                                                   name="variants[{{ $variant->id }}]"
+                                                                   value="{{ $variantStock ? $variantStock->quantity : 0 }}"
+                                                                   min="0"
+                                                                   data-variant-id="{{ $variant->id }}">
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <input type="hidden" name="branch_id" value="{{ $currentBranch->id }}">
+                                    <input type="hidden" name="product_id" value="{{ $product->id }}">
+                                    <input type="hidden" name="type" value="variable">
+                                </div>
+                            @endif
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                            <button type="submit" class="btn btn-primary">{{ __('Update Stock') }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
 
 @endsection
 
@@ -745,6 +1082,56 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         };
     });
+
+    // Edit Stock Form Handler
+    @if(currentBranch() && vendorSetting('allow_branch_user_to_edit_stock', false))
+    document.getElementById('editStockForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const data = {};
+        formData.forEach((value, key) => {
+            if (key.startsWith('variants[')) {
+                if (!data.variants) data.variants = {};
+                const variantId = key.match(/\[(\d+)\]/)[1];
+                data.variants[variantId] = value;
+            } else {
+                data[key] = value;
+            }
+        });
+
+        fetch('{{ route('vendor.products.update-branch-stock', $product) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '{{ __('Success') }}',
+                    text: data.message,
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire('{{ __('Error') }}', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            Swal.fire('{{ __('Error') }}', '{{ __('Failed to update stock.') }}', 'error');
+            console.error('Error:', error);
+        });
+    });
+    @endif
 
 });
 </script>

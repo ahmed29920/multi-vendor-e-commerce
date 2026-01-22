@@ -27,7 +27,8 @@ class BranchController extends Controller
     protected function getVendor(): ?Vendor
     {
         $user = Auth::user();
-        return Vendor::where('owner_id', $user->id)->first();
+
+        return $user->vendor();
     }
 
     /**
@@ -35,9 +36,10 @@ class BranchController extends Controller
      */
     public function index(): View
     {
+
         $vendor = $this->getVendor();
 
-        if (!$vendor) {
+        if (! $vendor) {
             abort(404, __('Vendor account not found.'));
         }
 
@@ -53,7 +55,7 @@ class BranchController extends Controller
     {
         $vendor = $this->getVendor();
 
-        if (!$vendor) {
+        if (! $vendor) {
             abort(404, __('Vendor account not found.'));
         }
 
@@ -68,7 +70,7 @@ class BranchController extends Controller
         try {
             $vendor = $this->getVendor();
 
-            if (!$vendor) {
+            if (! $vendor) {
                 return redirect()->back()
                     ->with('error', __('Vendor account not found. Please contact administrator.'));
             }
@@ -104,7 +106,7 @@ class BranchController extends Controller
     {
         $vendor = $this->getVendor();
 
-        if (!$vendor) {
+        if (! $vendor) {
             abort(404, __('Vendor account not found.'));
         }
 
@@ -123,7 +125,7 @@ class BranchController extends Controller
     {
         $vendor = $this->getVendor();
 
-        if (!$vendor) {
+        if (! $vendor) {
             abort(404, __('Vendor account not found.'));
         }
 
@@ -143,7 +145,7 @@ class BranchController extends Controller
         try {
             $vendor = $this->getVendor();
 
-            if (!$vendor) {
+            if (! $vendor) {
                 return redirect()->back()
                     ->with('error', __('Vendor account not found. Please contact administrator.'));
             }
@@ -185,7 +187,7 @@ class BranchController extends Controller
         try {
             $vendor = $this->getVendor();
 
-            if (!$vendor) {
+            if (! $vendor) {
                 return redirect()->back()
                     ->with('error', __('Vendor account not found. Please contact administrator.'));
             }
@@ -213,7 +215,7 @@ class BranchController extends Controller
         try {
             $vendor = $this->getVendor();
 
-            if (!$vendor) {
+            if (! $vendor) {
                 return response()->json([
                     'success' => false,
                     'message' => __('Vendor account not found.'),

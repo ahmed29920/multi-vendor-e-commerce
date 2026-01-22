@@ -45,18 +45,36 @@
                             @endif
                         </td>
                         <td>
-                            @if($product->isInStock())
-                                @php
-                                    $totalStock = 0;
+                            @php
+                                // Get current branch if user is branch user
+                                $currentBranch = currentBranch();
+
+                                if ($currentBranch) {
+                                    // Calculate stock only for current branch
                                     if ($product->type === 'simple') {
-                                        $totalStock = $product->branchProductStocks->sum('quantity');
+                                        $branchStock = $product->branchProductStocks
+                                            ->where('branch_id', $currentBranch->id)
+                                            ->sum('quantity');
                                     } else {
-                                        $totalStock = $product->variants->sum(function($variant) {
+                                        $branchStock = $product->variants->sum(function($variant) use ($currentBranch) {
+                                            return $variant->branchVariantStocks
+                                                ->where('branch_id', $currentBranch->id)
+                                                ->sum('quantity');
+                                        });
+                                    }
+                                } else {
+                                    // Calculate total stock across all branches for owner users
+                                    if ($product->type === 'simple') {
+                                        $branchStock = $product->branchProductStocks->sum('quantity');
+                                    } else {
+                                        $branchStock = $product->variants->sum(function($variant) {
                                             return $variant->branchVariantStocks->sum('quantity');
                                         });
                                     }
-                                @endphp
-                                <span class="badge bg-success">{{ $totalStock }}</span>
+                                }
+                            @endphp
+                            @if($branchStock > 0)
+                                <span class="badge bg-success">{{ $branchStock }}</span>
                             @else
                                 <span class="badge bg-danger">{{ __('Out of Stock') }}</span>
                             @endif
@@ -131,23 +149,23 @@
                                 @if(auth()->user()->hasPermissionTo('view-products') || auth()->user()->hasPermissionTo('manage-products') || auth()->user()->hasRole('vendor'))
                                     <a href="{{ route('vendor.products.show', $product) }}"
                                         class="btn btn-outline-info" title="{{ __('View') }}">
-                                        <i class="bi bi-eye"></i>
+                                        <i class="bi bi-eye mx-0"></i>
                                     </a>
                                 @endif
-                                @if(auth()->user()->hasPermissionTo('edit-products') || auth()->user()->hasPermissionTo('manage-products') || auth()->user()->hasRole('vendor'))
+                                @if(canCreateProducts())
                                     <a href="{{ route('vendor.products.edit', $product) }}"
                                         class="btn btn-outline-primary" title="{{ __('Edit') }}">
-                                        <i class="bi bi-pencil"></i>
+                                        <i class="bi bi-pencil mx-0"></i>
                                     </a>
                                 @endif
-                                @if(auth()->user()->hasPermissionTo('delete-products') || auth()->user()->hasPermissionTo('manage-products') || auth()->user()->hasRole('vendor'))
+                                @if(canCreateProducts())
                                     <button type="button"
                                         class="btn btn-outline-danger delete-product-btn"
                                         title="{{ __('Delete') }}"
                                         data-product-id="{{ $product->id }}"
                                         data-product-name="{{ $product->getTranslation('name', app()->getLocale()) }}"
                                         data-delete-url="{{ route('vendor.products.destroy', $product) }}">
-                                        <i class="bi bi-trash"></i>
+                                        <i class="bi bi-trash mx-0"></i>
                                     </button>
                                 @endif
                             </div>
@@ -161,7 +179,7 @@
     <div class="text-center py-5">
         <i class="bi bi-box-seam display-1 text-muted"></i>
         <p class="text-muted mt-3">{{ __('No products found.') }}</p>
-        @if(auth()->user()->hasPermissionTo('create-products') || auth()->user()->hasPermissionTo('manage-products') || auth()->user()->hasRole('vendor'))
+        @if(canCreateProducts())
             <a href="{{ route('vendor.products.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-lg me-2"></i>{{ __('Create First Product') }}
             </a>

@@ -31,7 +31,7 @@
                 <p class="text-muted mb-0">{{ __('Manage your branches') }}</p>
             </div>
             <div>
-                @if(setting('profit_type') == 'commission' || (auth()->user()->vendor()->plan_id && setting('profit_type') == 'subscription'))
+                @if(setting('profit_type') == 'commission' || ($currentVendor?->plan_id && setting('profit_type') == 'subscription'))
                     @if(auth()->user()->hasPermissionTo('create-branches') || auth()->user()->hasPermissionTo('manage-branches') || auth()->user()->hasRole('vendor'))
                         <a href="{{ route('vendor.branches.create') }}" class="btn btn-primary">
                             <i class="bi bi-plus-lg me-2"></i>{{ __('Add Branch') }}

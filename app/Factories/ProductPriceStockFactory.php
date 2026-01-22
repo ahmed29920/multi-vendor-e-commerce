@@ -11,8 +11,12 @@ class ProductPriceStockFactory
 {
     public static function make(Product $product): ProductPriceStockInterface
     {
-        return $product->type == 'variable'
-            ? new VariableProduct($product)
-            : new SimpleProduct($product);
+        if ($product->type === 'variable') {
+            return new VariableProduct($product);
+        }
+        if ($product->type === 'simple') {
+            return new SimpleProduct($product);
+        }
+        throw new \InvalidArgumentException('Invalid product type');
     }
 }

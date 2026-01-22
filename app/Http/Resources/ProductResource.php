@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,32 +19,51 @@ class ProductResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
-            'thumb_image' => $this->image,
+            'thumb_image' => $this->main_image,
             'description' => $this->description,
+            'discount' => $this->discount,
+            'discount_type' => $this->discount_type,
             'is_active' => $this->is_active,
+            'is_favorite' => $this->when(auth()->check(), function () {
+                // Use exists query to avoid N+1 - this is more efficient than loading the relationship
+                return $this->favoritedBy()->where('user_id', auth()->id())->exists();
+            }, false),
             'is_featured' => $this->is_featured,
             'is_approved' => $this->is_approved,
-            'is_boosted' => $this->is_boosted,
+            'is_bookable' => $this->is_bookable,
             'is_new' => $this->is_new,
             'vendor' => new VendorResource($this->whenLoaded('vendor')),
             'categories' => CategoryResource::collection($this->whenLoaded('categories')),
             'images' => ImageResource::collection($this->whenLoaded('images')),
-            'related_products' => $this->whenLoaded('relatedProducts', function () {
-                return ProductResource::collection(
-                    $this->relatedProducts->map->relatedProduct->filter()
-                );
-            }),
+            'related_products' => RelatedProductResource::collection($this->getEffectiveRelatedProducts()),
             'price' => $this->manager()->price(),
             'stock' => $this->manager()->stock(),
             'type' => $this->type ?? 'simple',
+            'rating' => $this->when($this->relationLoaded('ratings'), function () {
+                $visibleRatings = $this->ratings->where('is_visible', true);
+
+                return [
+                    'average' => (float) ($visibleRatings->avg('rating') ?? 0),
+                    'count' => $visibleRatings->count(),
+                ];
+            }, function () {
+                // Fallback if ratings not loaded - use cached value if available
+                return [
+                    'average' => (float) ($this->ratings()->where('is_visible', true)->avg('rating') ?? 0),
+                    'count' => (int) $this->ratings()->where('is_visible', true)->count(),
+                ];
+            }),
+            'ratings' => ProductRatingResource::collection(
+                $this->whenLoaded('ratings', function () {
+                    return $this->ratings->where('is_visible', true)->values();
+                })
+            ),
             'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),
 
             // Variant options grouped by variant type
             'variant_options' => $this->when($this->type === 'variable', function () {
                 return $this->getVariantOptions();
             }),
-
-
 
             // Variants summary
             'variants_summary' => $this->when($this->type === 'variable', function () {
@@ -75,14 +95,13 @@ class ProductResource extends JsonResource
             }),
         ];
     }
+
     /**
      * Get variant options grouped by variant type
-     *
-     * @return array
      */
     protected function getVariantOptions(): array
     {
-        if (!$this->relationLoaded('variants')) {
+        if (! $this->relationLoaded('variants')) {
             $this->load('variants.values.variantOption.variant');
         }
 
@@ -98,7 +117,7 @@ class ProductResource extends JsonResource
                     $optionCode = $value->variantOption->code;
 
                     // Initialize variant group if not exists
-                    if (!isset($groupedOptions[$variantId])) {
+                    if (! isset($groupedOptions[$variantId])) {
                         $groupedOptions[$variantId] = [
                             'variant_id' => $variantId,
                             'variant_name' => $variantName,
@@ -115,7 +134,7 @@ class ProductResource extends JsonResource
                         }
                     }
 
-                    if (!$optionExists) {
+                    if (! $optionExists) {
                         $groupedOptions[$variantId]['options'][] = [
                             'id' => $optionId,
                             'name' => $optionName,
@@ -128,5 +147,45 @@ class ProductResource extends JsonResource
 
         // Convert to indexed array
         return array_values($groupedOptions);
+    }
+
+    /**
+     * Get manual related products if defined, otherwise generate automatic related products.
+     */
+    protected function getEffectiveRelatedProducts()
+    {
+        if ($this->relationLoaded('relatedProducts') && $this->relatedProducts->isNotEmpty()) {
+            return $this->relatedProducts
+                ->map->relatedProduct
+                ->filter()
+                ->take(4)
+                ->values();
+        }
+
+        return $this->getAutoRelatedProducts();
+    }
+
+    /**
+     * Generate automatic related products for this product.
+     */
+    protected function getAutoRelatedProducts()
+    {
+        // Try to use already loaded categories; fall back to querying if not loaded
+        $categoryIds = $this->relationLoaded('categories')
+            ? $this->categories->pluck('id')
+            : $this->categories()->pluck('categories.id');
+
+        $query = Product::active()
+            ->approved()
+            ->with(['vendor', 'categories', 'images'])
+            ->where('id', '!=', $this->id);
+
+        if ($categoryIds->isNotEmpty()) {
+            $query->whereHas('categories', function ($q) use ($categoryIds) {
+                $q->whereIn('categories.id', $categoryIds);
+            });
+        }
+
+        return $query->inRandomOrder()->limit(4)->get();
     }
 }

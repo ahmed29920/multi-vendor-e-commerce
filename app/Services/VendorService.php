@@ -84,6 +84,7 @@ class VendorService
                 'password' => Hash::make($request->owner_password),
                 'is_active' => true,
                 'is_verified' => false,
+                'role' => 'vendor',
             ]);
 
             // Assign vendor role if exists
@@ -111,14 +112,14 @@ class VendorService
             }
 
             // Generate slug from English name
-            if (isset($request->name['en']) && !empty($request->name['en'])) {
+            if (isset($request->name['en']) && ! empty($request->name['en'])) {
                 $baseSlug = \Illuminate\Support\Str::slug($request->name['en']);
                 $slug = $baseSlug;
                 $counter = 1;
 
                 // Ensure slug is unique
                 while ($this->vendorRepository->getVendorBySlug($slug)) {
-                    $slug = $baseSlug . '-' . $counter;
+                    $slug = $baseSlug.'-'.$counter;
                     $counter++;
                 }
 
@@ -154,7 +155,7 @@ class VendorService
 
             // Create or get user account
             $user = $request->user();
-            if (!$user) {
+            if (! $user) {
                 // Create new user if not authenticated
                 $user = User::create([
                     'name' => $request->owner_name,
@@ -163,6 +164,7 @@ class VendorService
                     'password' => Hash::make($request->password),
                     'is_active' => true,
                     'is_verified' => false,
+                    'role' => 'vendor',
                 ]);
 
                 // Assign vendor role if exists
@@ -189,14 +191,14 @@ class VendorService
             }
 
             // Generate slug from English name
-            if (isset($request->name['en']) && !empty($request->name['en'])) {
+            if (isset($request->name['en']) && ! empty($request->name['en'])) {
                 $baseSlug = \Illuminate\Support\Str::slug($request->name['en']);
                 $slug = $baseSlug;
                 $counter = 1;
 
                 // Ensure slug is unique
                 while ($this->vendorRepository->getVendorBySlug($slug)) {
-                    $slug = $baseSlug . '-' . $counter;
+                    $slug = $baseSlug.'-'.$counter;
                     $counter++;
                 }
 
@@ -250,6 +252,7 @@ class VendorService
                     'password' => Hash::make($request->owner_password ?? 'password'),
                     'is_active' => true,
                     'is_verified' => false,
+                    'role' => 'vendor',
                 ]);
 
                 // Assign vendor role if exists
@@ -276,7 +279,7 @@ class VendorService
 
             // Handle image upload
             if ($request->hasFile('image')) {
-                //dd($vendor->id,$vendor->image, $vendor->getRawOriginal('image'));
+                // dd($vendor->id,$vendor->image, $vendor->getRawOriginal('image'));
                 // Delete old image if exists
                 if ($vendor->getRawOriginal('image') && Storage::disk('public')->exists($vendor->getRawOriginal('image'))) {
                     Storage::disk('public')->delete($vendor->getRawOriginal('image'));
@@ -291,20 +294,20 @@ class VendorService
             }
 
             // Update slug if name changed
-            if (isset($request->name['en']) && !empty($request->name['en'])) {
+            if (isset($request->name['en']) && ! empty($request->name['en'])) {
                 $newSlug = \Illuminate\Support\Str::slug($request->name['en']);
                 // Only update slug if it's different and doesn't conflict with another vendor
                 if ($newSlug !== $vendor->slug) {
                     $existingVendor = $this->vendorRepository->getVendorBySlug($newSlug);
-                    if (!$existingVendor || $existingVendor->id === $vendor->id) {
+                    if (! $existingVendor || $existingVendor->id === $vendor->id) {
                         $data['slug'] = $newSlug;
                     } else {
                         // Append a number if slug exists
                         $counter = 1;
-                        while ($this->vendorRepository->getVendorBySlug($newSlug . '-' . $counter)) {
+                        while ($this->vendorRepository->getVendorBySlug($newSlug.'-'.$counter)) {
                             $counter++;
                         }
-                        $data['slug'] = $newSlug . '-' . $counter;
+                        $data['slug'] = $newSlug.'-'.$counter;
                     }
                 }
             }
@@ -393,6 +396,7 @@ class VendorService
     public function toggleActive(Vendor $vendor): Vendor
     {
         $vendor->update(['is_active' => ! $vendor->is_active]);
+
         return $vendor->fresh();
     }
 
@@ -402,6 +406,7 @@ class VendorService
     public function toggleFeatured(Vendor $vendor): Vendor
     {
         $vendor->update(['is_featured' => ! $vendor->is_featured]);
+
         return $vendor->fresh();
     }
 

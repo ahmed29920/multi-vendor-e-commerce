@@ -157,7 +157,7 @@
         </header>
 
         <!-- Sidebar -->
-        <aside class="admin-sidebar" id="admin-sidebar">
+        <aside class="admin-sidebar" id="admin-sidebar" style="overflow-y: scroll">
             <div class="sidebar-content">
                 <nav class="sidebar-nav">
                     <ul class="nav flex-column">

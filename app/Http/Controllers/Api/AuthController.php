@@ -6,17 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Auth\LoginRequest;
 use App\Http\Requests\Api\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
-use App\Mail\ForgetPasswordMail;
 use App\Models\User;
 use App\Models\Verification;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -27,6 +23,14 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
+        $referredById = null;
+        if (! empty($validated['referred_by_code'] ?? null)) {
+            $referredBy = User::where('referral_code', $validated['referred_by_code'])->first();
+            if ($referredBy) {
+                $referredById = $referredBy->id;
+                $referredBy->increment('points', setting('referral_points', 0));
+            }
+        }
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
@@ -34,6 +38,7 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'is_active' => true,
             'is_verified' => false,
+            'referred_by_id' => $referredById,
         ]);
         $user->assignRole('user');
         if ($validated['email']) {
@@ -255,5 +260,4 @@ class AuthController extends Controller
             ],
         ], 200);
     }
-
 }

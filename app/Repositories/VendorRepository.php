@@ -24,17 +24,17 @@ class VendorRepository
         $query = Vendor::with(['owner', 'plan']);
 
         // Apply search filter
-        if (!empty($filters['search'])) {
-            $search = trim($filters['search']);
+        if (! empty($filters['search'])) {
+            $search = trim((string) $filters['search']);
             $query->where(function ($q) use ($search) {
                 $q->whereRaw("JSON_EXTRACT(name, '$.en') LIKE ?", ["%{$search}%"])
-                  ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"])
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('address', 'like', "%{$search}%")
-                  ->orWhereHas('owner', function ($ownerQuery) use ($search) {
-                      $ownerQuery->where('name', 'like', "%{$search}%")
-                                  ->orWhere('email', 'like', "%{$search}%");
-                  });
+                    ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"])
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhereHas('owner', function ($ownerQuery) use ($search) {
+                        $ownerQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -53,7 +53,45 @@ class VendorRepository
             $query->where('plan_id', $filters['plan_id']);
         }
 
-        return $query->latest()->paginate($perPage);
+        // Balance range
+        if (isset($filters['min_balance']) && $filters['min_balance'] !== '') {
+            $query->where('balance', '>=', $filters['min_balance']);
+        }
+
+        if (isset($filters['max_balance']) && $filters['max_balance'] !== '') {
+            $query->where('balance', '<=', $filters['max_balance']);
+        }
+
+        // Commission rate range
+        if (isset($filters['min_commission_rate']) && $filters['min_commission_rate'] !== '') {
+            $query->where('commission_rate', '>=', $filters['min_commission_rate']);
+        }
+
+        if (isset($filters['max_commission_rate']) && $filters['max_commission_rate'] !== '') {
+            $query->where('commission_rate', '<=', $filters['max_commission_rate']);
+        }
+
+        // Created date range
+        if (isset($filters['from_date']) && $filters['from_date'] !== '') {
+            $query->whereDate('created_at', '>=', $filters['from_date']);
+        }
+
+        if (isset($filters['to_date']) && $filters['to_date'] !== '') {
+            $query->whereDate('created_at', '<=', $filters['to_date']);
+        }
+
+        $sort = (string) ($filters['sort'] ?? 'latest');
+
+        match ($sort) {
+            'oldest' => $query->oldest(),
+            'balance_desc' => $query->orderBy('balance', 'desc'),
+            'balance_asc' => $query->orderBy('balance', 'asc'),
+            'commission_desc' => $query->orderBy('commission_rate', 'desc'),
+            'commission_asc' => $query->orderBy('commission_rate', 'asc'),
+            default => $query->latest(),
+        };
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**
@@ -69,7 +107,7 @@ class VendorRepository
      */
     public function getVendorBySlug(string $slug): ?Vendor
     {
-        return Vendor::with(['owner', 'plan', 'subscriptions'])->where('slug', $slug)->first();
+        return Vendor::with(['owner', 'plan', 'subscriptions'])->where('slug', '=', $slug, 'and')->first();
     }
 
     /**
@@ -77,7 +115,7 @@ class VendorRepository
      */
     public function getActiveVendors(): Collection
     {
-        return Vendor::where('is_active', true)->with(['owner', 'plan'])->get();
+        return Vendor::query()->where('is_active', '=', true, 'and')->with(['owner', 'plan'])->get();
     }
 
     /**
@@ -85,8 +123,8 @@ class VendorRepository
      */
     public function getFeaturedVendors(): Collection
     {
-        return Vendor::where('is_featured', true)
-            ->where('is_active', true)
+        return Vendor::query()->where('is_featured', '=', true, 'and')
+            ->where('is_active', '=', true, 'and')
             ->with(['owner', 'plan'])
             ->get();
     }
@@ -96,7 +134,7 @@ class VendorRepository
      */
     public function getVendorsByOwner(int $ownerId): Collection
     {
-        return Vendor::where('owner_id', $ownerId)->with(['plan'])->get();
+        return Vendor::query()->where('owner_id', '=', $ownerId, 'and')->with(['plan'])->get();
     }
 
     /**
@@ -104,7 +142,7 @@ class VendorRepository
      */
     public function getVendorsByPlan(int $planId): Collection
     {
-        return Vendor::where('plan_id', $planId)->with(['owner'])->get();
+        return Vendor::query()->where('plan_id', '=', $planId, 'and')->with(['owner'])->get();
     }
 
     /**
@@ -128,7 +166,7 @@ class VendorRepository
      */
     public function delete(Vendor $vendor): bool
     {
-        return $vendor->delete();
+        return Vendor::destroy($vendor->id) > 0;
     }
 
     /**
@@ -152,14 +190,14 @@ class VendorRepository
      */
     public function search(string $search): Collection
     {
-        return Vendor::where(function ($q) use ($search) {
+        return Vendor::query()->where(function ($q) use ($search) {
             $q->whereRaw("JSON_EXTRACT(name, '$.en') LIKE ?", ["%{$search}%"])
-              ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"])
-              ->orWhere('phone', 'like', "%{$search}%")
-              ->orWhere('address', 'like', "%{$search}%");
+                ->orWhereRaw("JSON_EXTRACT(name, '$.ar') LIKE ?", ["%{$search}%"])
+                ->orWhere('phone', 'like', "%{$search}%")
+                ->orWhere('address', 'like', "%{$search}%");
         })
-        ->with(['owner', 'plan'])
-        ->get();
+            ->with(['owner', 'plan'])
+            ->get();
     }
 
     /**
@@ -167,7 +205,7 @@ class VendorRepository
      */
     public function ownerHasVendor(int $ownerId): bool
     {
-        return Vendor::where('owner_id', $ownerId)->exists();
+        return Vendor::query()->where('owner_id', '=', $ownerId, 'and')->exists();
     }
 
     /**
@@ -175,6 +213,6 @@ class VendorRepository
      */
     public function getVendorByOwner(int $ownerId): ?Vendor
     {
-        return Vendor::where('owner_id', $ownerId)->with(['plan'])->first();
+        return Vendor::query()->where('owner_id', '=', $ownerId, 'and')->with(['plan'])->first();
     }
 }

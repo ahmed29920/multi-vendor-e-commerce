@@ -4,9 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
-use Illuminate\Http\Request;
+use App\Models\Category;
 use App\Services\CategoryService;
-use Illuminate\Http\JsonResponse;
 
 class CategoryController extends Controller
 {
@@ -20,18 +19,22 @@ class CategoryController extends Controller
     public function index()
     {
         $perPage = request()->get('per_page', 15);
-        $filters = request()->get('filters', [
-            'search' => request()->get('search'),
-            'status' => request()->get('status'),
-            'featured' => request()->get('featured'),
-            'parent_id' => request()->get('parent_id'),
-        ]);
+        $filters = [
+            'search' => request()->get('search', ''),
+            'status' => request()->get('status', ''),
+            'featured' => request()->get('featured', ''),
+            'parent_id' => request()->get('parent_id', ''),
+            'sort' => request()->get('sort', ''),
+        ];
         $categories = $this->service->getPaginatedCategories($perPage, $filters);
+
         return CategoryResource::collection($categories);
     }
-    public function show($id)
+
+    public function show(Category $category)
     {
-        $category = $this->service->getCategoryById($id);
+        $category = $this->service->getCategoryById($category->id);
+
         return new CategoryResource($category);
     }
 }

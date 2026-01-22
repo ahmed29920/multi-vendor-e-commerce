@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -32,6 +33,10 @@ class User extends Authenticatable
         'is_verified',
         'password',
         'image',
+        'referral_code',
+        'referred_by_id',
+        'wallet',
+        'points',
     ];
 
     /**
@@ -75,6 +80,9 @@ class User extends Authenticatable
             if (! $user->email && ! $user->phone) {
                 throw new \Exception(__('You must enter at least one email or phone'));
             }
+            if (! $user->referral_code) {
+                $user->referral_code = Str::random(8);
+            }
         });
     }
 
@@ -85,16 +93,89 @@ class User extends Authenticatable
 
     public function vendorUsers()
     {
-        return $this->belongsToMany(Vendor::class, 'vendor_users');
+        return $this->belongsToMany(Vendor::class, 'vendor_users')
+            ->withPivot(['is_active', 'branch_id', 'user_type']);
     }
 
     public function vendor()
     {
-
-        if ($this->ownedVendor) {
-            return $this->ownedVendor;
+        // Return cached vendor if available (set by View Composer or previous call)
+        if (isset($this->cachedVendor)) {
+            return $this->cachedVendor;
         }
 
-        return $this->vendorUsers()->first();
+        // Check if ownedVendor is already loaded (to avoid query)
+        if ($this->relationLoaded('ownedVendor')) {
+            $this->cachedVendor = $this->getRelation('ownedVendor');
+            if ($this->cachedVendor) {
+                return $this->cachedVendor;
+            }
+        }
+
+        // Check if vendorUserRelation is already loaded
+        if ($this->relationLoaded('vendorUserRelation')) {
+            $vendorUser = $this->getRelation('vendorUserRelation');
+            if ($vendorUser) {
+                $this->cachedVendor = $vendorUser->vendor;
+
+                return $this->cachedVendor;
+            }
+        }
+
+        // Only query if not already loaded
+        if ($this->ownedVendor) {
+            $this->cachedVendor = $this->ownedVendor;
+        } else {
+            // Use VendorUser relationship for better performance (avoids join query)
+            $vendorUser = $this->vendorUserRelation()->with('vendor')->first();
+            $this->cachedVendor = $vendorUser?->vendor;
+        }
+
+        return $this->cachedVendor;
+    }
+
+    /**
+     * Get the vendor user relationship (direct, not through belongsToMany)
+     * This avoids the expensive join query from vendorUsers()
+     */
+    public function vendorUserRelation()
+    {
+        return $this->hasOne(\App\Models\VendorUser::class, 'user_id')
+            ->where('is_active', true);
+    }
+
+    public function favoriteProducts()
+    {
+        return $this->belongsToMany(Product::class, 'favorites')->withTimestamps();
+    }
+
+    public function referrer()
+    {
+        return $this->belongsTo(User::class, 'referred_by_id');
+    }
+
+    public function referrals()
+    {
+        return $this->hasMany(User::class, 'referred_by_id');
+    }
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(WalletTransaction::class);
+    }
+
+    public function pointTransactions()
+    {
+        return $this->hasMany(PointTransaction::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function addresses()
+    {
+        return $this->hasMany(Address::class);
     }
 }

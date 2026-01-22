@@ -370,21 +370,21 @@ A complete Postman collection is available in the project root:
 
 ## User Model Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | integer | User ID |
-| name | string | User's full name |
-| email | string | Email address |
-| phone | string\|null | Phone number |
-| image | string | Profile image URL |
+| Field             | Type | Description |
+|-------------------|------|-------------|
+| id                | integer | User ID |
+| name              | string | User's full name |
+| email             | string | Email address |
+| phone             | string\|null | Phone number |
+| image             | string | Profile image URL |
 | email_verified_at | datetime\|null | Email verification timestamp |
 | phone_verified_at | datetime\|null | Phone verification timestamp |
-| is_active | boolean | Account active status |
-| is_verified | boolean | Account verification status |
-| roles | array | User roles |
-| permissions | array | User permissions |
-| created_at | datetime | Account creation timestamp |
-| updated_at | datetime | Last update timestamp |
+| is_active         | boolean | Account active status |
+| is_verified       | boolean | Account verification status |
+| roles             | array | User roles |
+| permissions       | array | User permissions |
+| created_at        | datetime | Account creation timestamp |
+| updated_at        | datetime | Last update timestamp |
 
 ## Notes
 

@@ -40,6 +40,7 @@ class RegisterRequest extends FormRequest
                 'unique:'.User::class,
             ],
             'password' => ['required', 'string', Password::defaults(), 'confirmed'],
+            'referred_by_code' => ['nullable', 'string', 'exists:users,referral_code'],
         ];
     }
 
@@ -61,6 +62,7 @@ class RegisterRequest extends FormRequest
             'phone.unique' => __('The phone has already been taken.'),
             'password.required' => __('The password field is required.'),
             'password.confirmed' => __('The password confirmation does not match.'),
+            'referred_by_code.exists' => __('The referred by code is invalid.'),
         ];
     }
 }

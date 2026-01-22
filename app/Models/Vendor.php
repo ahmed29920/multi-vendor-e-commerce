@@ -63,6 +63,7 @@ class Vendor extends Model
     public function activeSubscription()
     {
         $today = now()->startOfDay();
+
         return $this->subscriptions()
             ->where('status', 'active')
             ->whereDate('end_date', '>=', $today)
@@ -88,7 +89,8 @@ class Vendor extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class, 'vendor_users');
+        return $this->belongsToMany(User::class, 'vendor_users')
+            ->withPivot(['is_active', 'branch_id', 'user_type']);
     }
 
     /**
@@ -108,8 +110,34 @@ class Vendor extends Model
     {
         return $this->hasMany(Product::class);
     }
+
     public function branches()
     {
         return $this->hasMany(Branch::class);
+    }
+
+    public function settings()
+    {
+        return $this->hasMany(VendorSetting::class);
+    }
+
+    public function ratings()
+    {
+        return $this->hasMany(VendorRating::class);
+    }
+
+    public function reports()
+    {
+        return $this->hasMany(VendorReport::class);
+    }
+
+    public function balanceTransactions()
+    {
+        return $this->hasMany(VendorBalanceTransaction::class);
+    }
+
+    public function withdrawals()
+    {
+        return $this->hasMany(VendorWithdrawal::class);
     }
 }

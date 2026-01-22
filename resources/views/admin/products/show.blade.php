@@ -98,10 +98,10 @@
                                     </div>
                                     <div class="flex-grow-1 ms-3">
                                         <small class="text-muted d-block">{{ __('Price') }}</small>
-                                        <strong class="d-block">{{ number_format($product->price, 2) }} {{ setting('currency') }}</strong>
+                                        <strong class="d-block">{{ number_format($product->manager()->price(), 2) }} {{ setting('currency') }}</strong>
                                         @if($product->hasDiscount())
                                             <small class="text-success">
-                                                <i class="bi bi-arrow-down"></i> {{ number_format($product->final_price, 2) }} {{ setting('currency') }}
+                                                <i class="bi bi-arrow-down"></i> {{ number_format($product->manager()->finalPrice(), 2) }} {{ setting('currency') }}
                                             </small>
                                         @endif
                                     </div>
@@ -203,6 +203,13 @@
                             </button>
                         </li>
                     @endif
+                    @if(isset($vendorBranches) && $vendorBranches->count() > 0)
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="branch-stock-tab" data-bs-toggle="tab" data-bs-target="#branch-stock" type="button" role="tab">
+                                <i class="bi bi-shop me-2"></i>{{ __('Branch Stock') }}
+                            </button>
+                        </li>
+                    @endif
                 </ul>
 
                 <div class="tab-content" id="productTabsContent">
@@ -268,7 +275,7 @@
                                         <div class="text-center p-3   rounded">
                                             <i class="bi bi-tag fs-3 text-primary mb-2"></i>
                                             <div class="small text-muted">{{ __('Base Price') }}</div>
-                                            <div class="h5 mb-0 fw-bold">{{ number_format($product->price, 2) }} {{ setting('currency') }}</div>
+                                            <div class="h5 mb-0 fw-bold">{{ number_format($product->manager()->price(), 2) }} {{ setting('currency') }}</div>
                                         </div>
                                     </div>
                                     @if($product->hasDiscount())
@@ -289,7 +296,7 @@
                                             <div class="text-center p-3 bg-success bg-opacity-10 rounded">
                                                 <i class="bi bi-check-circle fs-3 text-success mb-2"></i>
                                                 <div class="small text-muted">{{ __('Final Price') }}</div>
-                                                <div class="h5 mb-0 fw-bold text-success">{{ number_format($product->final_price, 2) }} {{ setting('currency') }}</div>
+                                                <div class="h5 mb-0 fw-bold text-success">{{ number_format($product->manager()->finalPrice(), 2) }} {{ setting('currency') }}</div>
                                             </div>
                                         </div>
                                     @endif
@@ -382,7 +389,14 @@
                                                     <th>{{ __('Name') }}</th>
                                                     <th>{{ __('SKU') }}</th>
                                                     <th>{{ __('Price') }}</th>
-                                                    <th>{{ __('Stock') }}</th>
+                                                    @if(isset($vendorBranches) && $vendorBranches->count() > 0)
+                                                        @foreach($vendorBranches as $branch)
+                                                            <th class="text-center">{{ __('Stock') }}<br><small class="text-muted">{{ $branch->name }}</small></th>
+                                                        @endforeach
+                                                        <th class="text-center">{{ __('Total') }}</th>
+                                                    @else
+                                                        <th>{{ __('Stock') }}</th>
+                                                    @endif
                                                     <th class="text-center">{{ __('Status') }}</th>
                                                 </tr>
                                             </thead>
@@ -400,21 +414,55 @@
                                                                 <span class="fw-semibold">{{ $variant->getTranslation('name', app()->getLocale()) }}</span>
                                                             </div>
                                                         </td>
-                                                        <td><code class="  px-2 py-1 rounded">{{ $variant->sku }}</code></td>
+                                                        <td><code class="px-2 py-1 rounded">{{ $variant->sku }}</code></td>
                                                         <td>
                                                             <strong>{{ number_format($variant->price, 2) }} {{ setting('currency') }}</strong>
                                                         </td>
-                                                        <td>
-                                                            @if($variant->hasStock())
-                                                                <span class="badge bg-success">
-                                                                    <i class="bi bi-check-circle me-1"></i>{{ $variant->total_stock }}
-                                                                </span>
-                                                            @else
-                                                                <span class="badge bg-danger">
-                                                                    <i class="bi bi-x-circle me-1"></i>{{ __('Out of Stock') }}
-                                                                </span>
-                                                            @endif
-                                                        </td>
+                                                        @if(isset($vendorBranches) && $vendorBranches->count() > 0)
+                                                            @foreach($vendorBranches as $branch)
+                                                                <td class="text-center">
+                                                                    @php
+                                                                        $variantStock = $variant->branchVariantStocks->where('branch_id', $branch->id)->first();
+                                                                        $branchStock = $variantStock ? $variantStock->quantity : 0;
+                                                                    @endphp
+                                                                    @if($branchStock > 0)
+                                                                        <span class="badge bg-success">
+                                                                            <i class="bi bi-check-circle me-1"></i>{{ $branchStock }}
+                                                                        </span>
+                                                                    @else
+                                                                        <span class="badge bg-danger">
+                                                                            <i class="bi bi-x-circle me-1"></i>0
+                                                                        </span>
+                                                                    @endif
+                                                                </td>
+                                                            @endforeach
+                                                            <td class="text-center">
+                                                                @php
+                                                                    $totalVariantStock = $variant->branchVariantStocks->sum('quantity');
+                                                                @endphp
+                                                                @if($totalVariantStock > 0)
+                                                                    <span class="badge bg-primary">
+                                                                        <i class="bi bi-check-circle me-1"></i>{{ $totalVariantStock }}
+                                                                    </span>
+                                                                @else
+                                                                    <span class="badge bg-danger">
+                                                                        <i class="bi bi-x-circle me-1"></i>{{ __('Out of Stock') }}
+                                                                    </span>
+                                                                @endif
+                                                            </td>
+                                                        @else
+                                                            <td>
+                                                                @if($variant->hasStock())
+                                                                    <span class="badge bg-success">
+                                                                        <i class="bi bi-check-circle me-1"></i>{{ $variant->total_stock }}
+                                                                    </span>
+                                                                @else
+                                                                    <span class="badge bg-danger">
+                                                                        <i class="bi bi-x-circle me-1"></i>{{ __('Out of Stock') }}
+                                                                    </span>
+                                                                @endif
+                                                            </td>
+                                                        @endif
                                                         <td class="text-center">
                                                             @if($variant->is_active)
                                                                 <span class="badge bg-success">{{ __('Active') }}</span>
@@ -451,6 +499,90 @@
                             </div>
                         </div>
                     @endif
+
+
+                    <div class="tab-pane fade" id="branch-stock" role="tabpanel">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-body p-4">
+                                <h5 class="card-title mb-4">
+                                    <i class="bi bi-shop text-primary me-2"></i>{{ __('Branch Stock Breakdown') }}
+                                </h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>{{ __('Branch Name') }}</th>
+                                                @if($product->type === 'simple')
+                                                    <th class="text-end">{{ __('Stock') }}</th>
+                                                @else
+                                                    <th class="text-end">{{ __('Total Stock') }}</th>
+                                                @endif
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if(isset($vendorBranches) && $vendorBranches->count() > 0)
+                                                @foreach($vendorBranches as $branch)
+                                                    <tr>
+                                                        <td>
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bi bi-shop me-2 text-primary"></i>
+                                                                <strong>{{ $branch->name }}</strong>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            @php
+                                                                if ($product->type === 'simple') {
+                                                                    $branchStockRecord = $product->branchProductStocks->where('branch_id', $branch->id)->first();
+                                                                    $branchStock = $branchStockRecord ? $branchStockRecord->quantity : 0;
+                                                                } else {
+                                                                    $branchStock = $product->variants->sum(function($variant) use ($branch) {
+                                                                        $stock = $variant->branchVariantStocks->where('branch_id', $branch->id)->first();
+                                                                        return $stock ? $stock->quantity : 0;
+                                                                    });
+                                                                }
+                                                            @endphp
+                                                            @if($branchStock > 0)
+                                                                <span class="badge bg-success fs-6">
+                                                                    <i class="bi bi-check-circle me-1"></i>{{ $branchStock }}
+                                                                </span>
+                                                            @else
+                                                                <span class="badge bg-danger fs-6">
+                                                                    <i class="bi bi-x-circle me-1"></i>{{ __('Out of Stock') }}
+                                                                </span>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            @else
+                                                <tr>
+                                                    <td colspan="2" class="text-center text-muted">
+                                                        <i class="bi bi-info-circle me-2"></i>{{ __('No branches found for this vendor') }}
+                                                    </td>
+                                                </tr>
+                                            @endif
+                                        </tbody>
+                                        <tfoot class="table-light">
+                                            <tr>
+                                                <th>{{ __('Total') }}</th>
+                                                <th class="text-end">
+                                                    @php
+                                                        if ($product->type === 'simple') {
+                                                            $totalStock = $product->branchProductStocks->sum('quantity');
+                                                        } else {
+                                                            $totalStock = $product->variants->sum(function($variant) {
+                                                                return $variant->branchVariantStocks->sum('quantity');
+                                                            });
+                                                        }
+                                                    @endphp
+                                                    <span class="badge bg-primary fs-6">{{ $totalStock }}</span>
+                                                </th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

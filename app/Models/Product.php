@@ -139,7 +139,7 @@ class Product extends Model
      */
     public function getFinalPriceAttribute(): float
     {
-        if (!$this->discount || $this->discount <= 0) {
+        if (! $this->discount || $this->discount <= 0) {
             return (float) $this->price;
         }
 
@@ -195,6 +195,7 @@ class Product extends Model
     public function getMainImageAttribute()
     {
         $firstImage = $this->images()->first();
+
         return $firstImage ? $firstImage->image_path : $this->thumbnail;
     }
 
@@ -242,10 +243,22 @@ class Product extends Model
     {
         return $this->belongsToMany(Branch::class, 'branch_product_stocks');
     }
+
+    public function ratings()
+    {
+        return $this->hasMany(ProductRating::class);
+    }
+
+    public function reports()
+    {
+        return $this->hasMany(ProductReport::class);
+    }
+
     public function manager()
     {
         return ProductPriceStockFactory::make($this);
     }
+
     protected function thumbnail(): Attribute
     {
         return Attribute::make(
@@ -253,5 +266,10 @@ class Product extends Model
                 ? asset('storage/'.$value)
                 : asset('dashboard/images/product_image.jpg')
         );
+    }
+
+    public function favoritedBy()
+    {
+        return $this->belongsToMany(User::class, 'favorites')->withTimestamps();
     }
 }

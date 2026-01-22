@@ -75,6 +75,14 @@ class CategoryService
     }
 
     /**
+     * Get all categories with filters for export
+     */
+    public function getAllCategoriesForExport(array $filters = []): Collection
+    {
+        return $this->categoryRepository->getAllCategoriesForExport($filters);
+    }
+
+    /**
      * Create a new category
      *
      * @param  \Illuminate\Http\Request  $request

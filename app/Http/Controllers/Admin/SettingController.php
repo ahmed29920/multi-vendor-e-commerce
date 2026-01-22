@@ -12,6 +12,7 @@ class SettingController extends Controller
     public function index()
     {
         $settings = Setting::all();
+
         return view('admin.settings.settings', compact('settings'));
     }
 
@@ -23,6 +24,8 @@ class SettingController extends Controller
             'app_icon' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:3072',
             'profit_type' => 'required|string|in:subscription,commission',
             'profit_value' => 'required_if:profit_type,commission|nullable|numeric|min:0',
+            'referral_points' => 'nullable|numeric|min:0',
+            'cache_back_points_rate' => 'nullable|numeric|min:0',
         ]);
 
         try {
@@ -47,6 +50,20 @@ class SettingController extends Controller
                 ['value' => $request->profit_value ?? 0, 'type' => 'number']
             );
             $this->updateCache('profit_value', $setting->value);
+
+            // Update referral_points
+            $setting = Setting::updateOrCreate(
+                ['key' => 'referral_points'],
+                ['value' => $request->referral_points ?? 0, 'type' => 'number']
+            );
+            $this->updateCache('referral_points', $setting->value);
+
+            // Update cache_back_points_rate
+            $setting = Setting::updateOrCreate(
+                ['key' => 'cache_back_points_rate'],
+                ['value' => $request->cache_back_points_rate ?? 0, 'type' => 'number']
+            );
+            $this->updateCache('cache_back_points_rate', $setting->value);
 
             // Handle app_logo upload
             if ($request->hasFile('app_logo')) {
@@ -73,16 +90,14 @@ class SettingController extends Controller
 
             return back()->with('success', 'Settings updated successfully');
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to update settings: ' . $e->getMessage())->withInput();
+            return back()->with('error', 'Failed to update settings: '.$e->getMessage())->withInput();
         }
     }
 
     /**
      * Update cache for a specific setting key
      *
-     * @param string $key
-     * @param mixed $value
-     * @return void
+     * @param  mixed  $value
      */
     private function updateCache(string $key, $value): void
     {

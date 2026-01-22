@@ -12,9 +12,9 @@ class CreateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Vendor role has all permissions, vendor_employee needs specific permission
-        return $this->user()->hasRole('vendor') ||
-               ($this->user()->hasRole('vendor_employee') && $this->user()->hasPermissionTo('create-products'));
+        // Only vendor owners or vendor users with user_type 'owner' can create products
+        // Branch users cannot create products
+        return canCreateProducts();
     }
 
     /**

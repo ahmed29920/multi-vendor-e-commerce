@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\Product;
 use App\Models\BranchProductStock;
 use App\Models\BranchProductVariantStock;
+use App\Models\Product;
+use App\Models\ProductRelation;
 use App\Models\ProductVariant;
 use App\Models\ProductVariantValue;
-use App\Models\ProductRelation;
 use App\Repositories\ProductRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -174,11 +174,12 @@ class ProductService
      */
     public function updateProduct($request, Product $product): Product
     {
+
         DB::beginTransaction();
         try {
             // Check if user is vendor - vendors cannot approve products
             $isVendor = Auth::user()->hasRole('vendor');
-            
+
             $data = [
                 'vendor_id' => $request->vendor_id ?? $product->vendor_id,
                 'type' => $request->type ?? $product->type,
@@ -220,21 +221,20 @@ class ProductService
                 $this->productRepository->syncCategories($product, $request->categories);
             }
 
-            // Handle product images
-            if ($request->hasFile('images')) {
-                $this->storeProductImages($product, $request->file('images'));
-            }
-
             // Handle existing images deletion - delete images that are NOT in the existing_images array
             $existingImageIds = $product->images->pluck('id')->toArray();
             $imagesToKeep = $request->input('existing_images', []);
-            if (!empty($existingImageIds)) {
+            if (! empty($existingImageIds)) {
                 $imagesToDelete = array_diff($existingImageIds, $imagesToKeep);
-                if (!empty($imagesToDelete)) {
+                if (! empty($imagesToDelete)) {
                     $this->deleteProductImages($product, array_values($imagesToDelete));
                 }
             }
 
+            // Handle product images
+            if ($request->hasFile('images')) {
+                $this->storeProductImages($product, $request->file('images'));
+            }
             // Handle branch stocks for simple products (check request type, not product type)
             $productType = $request->input('type', $product->type);
             if ($productType === 'simple') {
@@ -297,7 +297,8 @@ class ProductService
      */
     public function toggleActive(Product $product): Product
     {
-        $product->update(['is_active' => !$product->is_active]);
+        $product->update(['is_active' => ! $product->is_active]);
+
         return $product->fresh();
     }
 
@@ -306,7 +307,8 @@ class ProductService
      */
     public function toggleFeatured(Product $product): Product
     {
-        $product->update(['is_featured' => !$product->is_featured]);
+        $product->update(['is_featured' => ! $product->is_featured]);
+
         return $product->fresh();
     }
 
@@ -315,7 +317,8 @@ class ProductService
      */
     public function toggleApproved(Product $product): Product
     {
-        $product->update(['is_approved' => !$product->is_approved]);
+        $product->update(['is_approved' => ! $product->is_approved]);
+
         return $product->fresh();
     }
 
@@ -326,6 +329,7 @@ class ProductService
     {
         foreach ($images as $image) {
             $path = $image->store('products', 'public');
+
             $product->images()->create(['path' => $path]);
         }
     }
@@ -335,11 +339,11 @@ class ProductService
      */
     protected function generateUniqueSku(): string
     {
-        $sku = 'PRD-' . strtoupper(Str::random(8));
+        $sku = 'PRD-'.strtoupper(Str::random(8));
         $counter = 1;
 
         while (Product::where('sku', $sku)->exists()) {
-            $sku = 'PRD-' . strtoupper(Str::random(8)) . '-' . $counter;
+            $sku = 'PRD-'.strtoupper(Str::random(8)).'-'.$counter;
             $counter++;
         }
 
@@ -361,7 +365,7 @@ class ProductService
         }
 
         while ($query->exists()) {
-            $slug = $baseSlug . '-' . $counter;
+            $slug = $baseSlug.'-'.$counter;
             $counter++;
 
             $query = Product::where('slug', $slug);
@@ -396,6 +400,9 @@ class ProductService
      */
     protected function syncProductVariations(Product $product, array $variations): void
     {
+        // Refresh product with variants and their values loaded
+        $product->load('variants.values');
+
         // Get existing variation IDs to track which ones to keep
         $existingVariationIds = $product->variants->pluck('id')->toArray();
         $updatedVariationIds = [];
@@ -403,18 +410,23 @@ class ProductService
         foreach ($variations as $variationData) {
             $variation = null;
 
-            // Check if this variation already exists (by matching values)
-            if (isset($variationData['values']) && is_array($variationData['values'])) {
+            // First, try to find by SKU if provided (most reliable)
+            if (! empty($variationData['sku'])) {
+                $variation = $product->variants->firstWhere('sku', $variationData['sku']);
+            }
+
+            // If not found by SKU, try to find by matching values
+            if (! $variation && isset($variationData['values']) && is_array($variationData['values'])) {
                 $variation = $this->findExistingVariation($product, $variationData['values']);
             }
 
             if ($variation) {
                 // Update existing variation
-                $variation->update([
-                    'name' => $variationData['name'] ?? [],
-                    'sku' => $variationData['sku'] ?? '',
-                    'price' => $variationData['price'] ?? $product->price,
-                ]);
+                $updateData = [
+                    'name' => $variationData['name'] ?? $variation->name,
+                    'sku' => $variationData['sku'] ?? $variation->sku,
+                    'price' => $variationData['price'] ?? $variation->price,
+                ];
 
                 // Handle thumbnail
                 if (isset($variationData['thumbnail']) && $variationData['thumbnail']) {
@@ -422,28 +434,45 @@ class ProductService
                     if ($oldThumbnail && Storage::disk('public')->exists($oldThumbnail)) {
                         Storage::disk('public')->delete($oldThumbnail);
                     }
-                    $variation->thumbnail = $variationData['thumbnail']->store('products/variants', 'public');
-                    $variation->save();
+                    $updateData['thumbnail'] = $variationData['thumbnail']->store('products/variants', 'public');
+                }
+
+                $variation->update($updateData);
+
+                // Sync variation values - delete existing and create new ones
+                if (isset($variationData['values']) && is_array($variationData['values'])) {
+                    // Delete existing values
+                    $variation->values()->delete();
+                    
+                    // Create new values
+                    foreach ($variationData['values'] as $value) {
+                        if (isset($value['option_id'])) {
+                            ProductVariantValue::create([
+                                'product_variant_id' => $variation->id,
+                                'variant_option_id' => $value['option_id'],
+                            ]);
+                        }
+                    }
                 }
 
                 $updatedVariationIds[] = $variation->id;
             } else {
                 // Create new variation
-                $variation = ProductVariant::create([
-                    'thumbnail' => $variationData['thumbnail'] ?? null,
-                    'slug' => $variationData['slug'] ?? Str::slug($variationData['name']['en']),
+                $createData = [
+                    'slug' => $variationData['slug'] ?? Str::slug($variationData['name']['en'] ?? 'variant'),
                     'product_id' => $product->id,
                     'name' => $variationData['name'] ?? [],
                     'sku' => $variationData['sku'] ?? '',
                     'price' => $variationData['price'] ?? $product->price,
                     'is_active' => true,
-                ]);
+                ];
 
                 // Handle thumbnail
                 if (isset($variationData['thumbnail']) && $variationData['thumbnail']) {
-                    $variation->thumbnail = $variationData['thumbnail']->store('products/variants', 'public');
-                    $variation->save();
+                    $createData['thumbnail'] = $variationData['thumbnail']->store('products/variants', 'public');
                 }
+
+                $variation = ProductVariant::create($createData);
 
                 // Create variation values
                 if (isset($variationData['values']) && is_array($variationData['values'])) {
@@ -466,7 +495,7 @@ class ProductService
 
         // Delete variations that were not updated
         $variationsToDelete = array_diff($existingVariationIds, $updatedVariationIds);
-        if (!empty($variationsToDelete)) {
+        if (! empty($variationsToDelete)) {
             ProductVariant::whereIn('id', $variationsToDelete)->delete();
         }
     }
@@ -479,7 +508,13 @@ class ProductService
         $optionIds = array_column($values, 'option_id');
         sort($optionIds);
 
+        // Ensure variants have values loaded
         foreach ($product->variants as $variant) {
+            // Load values if not already loaded
+            if (! $variant->relationLoaded('values')) {
+                $variant->load('values');
+            }
+
             $variantOptionIds = $variant->values->pluck('variant_option_id')->toArray();
             sort($variantOptionIds);
 
